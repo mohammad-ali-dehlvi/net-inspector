@@ -1,0 +1,44 @@
+{
+  "name": "playwright_test",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "index.js",
+  "lint-staged": {
+    "*.{js,ts,jsx,tsx,css,md}": "prettier --write"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start:client": "vite",
+    "start:server": "tsx watch src/server/main.ts",
+    "start": "concurrently \"npm run start:server\" \"npm run start:client\"",
+    "prepare": "husky install"
+  },
+  "dependencies": {
+    "axios": "^1.13.5",
+    "ejs": "^4.0.1",
+    "express": "^5.2.1",
+    "express-ws": "^5.0.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router": "^7.13.0",
+    "ws": "^8.19.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/express-ws": "^3.0.6",
+    "@types/node": "^25.2.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^5.1.4",
+    "concurrently": "^9.2.1",
+    "playwright": "^1.58.2",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
+}
