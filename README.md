@@ -11,6 +11,11 @@ npm install
   This will install all the dependencies
 - Then Run
 ```
+playwright install
+```
+  This will install playwright dependency
+- Then Run
+```
 npm start
 ```
   This will start the `Frontend` as well as the `Backend` server.

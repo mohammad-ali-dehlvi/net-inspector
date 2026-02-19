@@ -18,13 +18,13 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
         // This removes "/api" from the start of the URL
-        rewrite: (path) => path.replace(/^\/api/, '') 
+        rewrite: (path) => path.replace(/^\/api/, '')
       },
       '/ws': {
         target: 'ws://localhost:8000',
         changeOrigin: true,
         // This removes "/api" from the start of the URL
-        rewrite: (path) => path.replace(/^\/ws/, '') 
+        rewrite: (path) => path.replace(/^\/ws/, '')
       }
     }
   }

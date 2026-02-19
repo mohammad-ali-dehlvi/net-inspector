@@ -16,11 +16,13 @@ export type BrowserStopResponse = {
     success: boolean
 }
 
-export type BrowserApiRequest = NetworkItemType
+export type BrowserApiRequest = { request: NetworkItemType['request']; pageUrl?: string }
 
 export type BrowserApiResponse = {
     success: true
+    type: string | null
     data: any
+    contentType?: string | null
 } | {
     success: false
     message: string

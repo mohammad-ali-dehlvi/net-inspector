@@ -3,68 +3,69 @@ import type { Browser, BrowserContext, Page } from "playwright";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { NetworkItemType } from "src/shared/types";
-
-type TempObjType = {
-    method: NetworkItemType['method'];
-    headers: NetworkItemType['headers'];
-    post_data: NetworkItemType['post_data']; 
-    // post_data_buffer: Buffer<ArrayBufferLike> | null; 
-    post_data_json: NetworkItemType['post_data_json'];
-    start_seconds: NetworkItemType['start_seconds']
-}
+import { BrowserApiRequest } from "src/server/routers/browser/types";
 
 export type BrowserStatus = "started" | "stopped"
 
-type BrowserStatusChangeCallback = (obj: {status: BrowserStatus})=>void
+type BrowserStatusChangeCallback = (obj: { status: BrowserStatus }) => void
 
 export class CustomPlaywrightPage {
     private browser: Browser | null = null
     private context: BrowserContext | null = null
     private page: Page | null = null
     private url: URL | null = null
-    private time: {start: number; stop: number} = {start: -1, stop: -1}
+    private time: { start: number; stop: number } = { start: -1, stop: -1 }
     private result: NetworkItemType[] = []
+
     private onBrowserStatusChangeCallbacks: (BrowserStatusChangeCallback)[] = []
+
     private data_folder_path = path.join(process.cwd(), "src", "server", "utils", "CustomPlaywright", "data")
     private auth_file_path = path.join(this.data_folder_path, "auth.json")
+
+    private video_folder_path = path.join(process.cwd(), "data", "video")
+
     private static instange: CustomPlaywrightPage | null = null
+
     static network_file_name = "network.json"
 
-    private constructor() {}
+    private constructor() { }
 
     static getInstange() {
-        if (!CustomPlaywrightPage.instange){
+        if (!CustomPlaywrightPage.instange) {
             CustomPlaywrightPage.instange = new CustomPlaywrightPage()
         }
         return CustomPlaywrightPage.instange
     }
 
     getStatus(): BrowserStatus {
-        return !!this.browser ? "started": "stopped"
+        return !!this.browser ? "started" : "stopped"
     }
 
-    onBrowserStatusChange(callback: BrowserStatusChangeCallback){
+    onBrowserStatusChange(callback: BrowserStatusChangeCallback) {
         const index = this.onBrowserStatusChangeCallbacks.push(callback)
-        return ()=>{
+        return () => {
             this.onBrowserStatusChangeCallbacks.splice(index, 1)
         }
     }
 
-    private async start(obj: {videoFolder: string}){
+    private async start(obj: { videoFolder: string }) {
         const { videoFolder } = obj
-        const videoPath = path.join(process.cwd(), "data", "video", videoFolder)
+        const videoPath = path.join(this.video_folder_path, videoFolder)
 
-        try{
-            // fs.rmdirSync(videoPath)
-            fs.rmSync(videoPath, {recursive: true, force: true})
-        }catch(err){
+        try {
+            fs.rmSync(videoPath, { recursive: true, force: true })
+        } catch (err) {
             console.log("error in rmdir: ", err)
             console.log(videoPath)
         }
-        fs.mkdirSync(videoPath, {recursive: true})
+        fs.mkdirSync(videoPath, { recursive: true })
 
-        this.browser = await playwright.chromium.launch({headless: false})
+        this.browser = await playwright.chromium.launch({ headless: false })
         this.context = await this.browser.newContext({
+            // recordHar: {
+            //     path: path.join(videoPath, "network_1.har"),
+            //     content: "embed"
+            // },
             recordVideo: {
                 dir: videoPath
             },
@@ -72,37 +73,58 @@ export class CustomPlaywrightPage {
         })
         this.page = await this.context?.newPage()
 
-        const tempObj: Record<string, TempObjType> = {}
-
-        this.page.addListener("request", (req)=>{
-            // console.log("Request: ", req.method(), req.headers(), req.url())
-            const url = req.url()
-            tempObj[url] = {
-                method: req.method(),
-                headers: req.headers(),
-                post_data: req.postData(),
-                // post_data_buffer: req.postDataBuffer(),
-                post_data_json: (()=>{try{return req.postDataJSON();}catch(err){return null;}})(),
-                start_seconds: (Date.now() - this.time.start)/1000
+        const handlePromises = async <T extends any>(p: (() => Promise<T>)[]) => {
+            const errors: any[] = []
+            for (let i = 0; i < p.length; i++) {
+                try {
+                    const promise = p[i]
+                    const data = await promise()
+                    if (data instanceof Buffer) {
+                        return data.toString("base64")
+                    }
+                    return data
+                } catch (err) {
+                    errors.push(err)
+                    return undefined
+                }
             }
-        })
-        this.page.addListener("response",async (res)=>{
-            // console.log("Request: ", res.status(), res.headers(), res.url())
-            const url = res.url()
+            return errors
+        }
+        const handleFunc = <T extends Function>(f: T) => { try { return f() } catch (err) { return null } }
+
+        this.page.addListener("response", async (response) => {
+            const request = response.request();
+
+            const responseEnd = request.timing().responseEnd
+
+            const startSeconds = (request.timing().startTime - this.time.start) / 1000; // epoch ms
+            const endSeconds = ((responseEnd < 0 ? Date.now() : responseEnd) - this.time.start) / 1000;
+
             this.result.push({
-                url,
-                end_seconds: (Date.now() - this.time.start)/1000,
-                ...tempObj[url]
-            })
+                startSeconds: startSeconds,
+                endSeconds: endSeconds,
+                pageUrl: this.page?.url(),
+                request: {
+                    method: request.method(),
+                    url: request.url(),
+                    headers: request.headers(),
+                    postData: request.postData(),
+                    postDataJSON: handleFunc(request.postDataJSON)
+                },
+                response: {
+                    status: response.status(),
+                    headers: response.headers(),
+                    body: await handlePromises([() => response.json(), () => response.body(), () => response.text()])
+                }
+            });
         })
 
         this.onBrowserStatusChangeCallbacks.forEach((callback) => {
-            callback({status: "started"})
+            callback({ status: "started" })
         })
 
-        
-        this.browser.addListener("disconnected", ()=>{
-            fs.writeFileSync(path.join(videoPath, CustomPlaywrightPage.network_file_name), JSON.stringify({pageUrl: this.url?.href, requests: this.result}, undefined, 4), {encoding: 'utf-8'})
+        this.browser.addListener("disconnected", async () => {
+            fs.writeFileSync(path.join(videoPath, CustomPlaywrightPage.network_file_name), JSON.stringify({ pageUrl: this.url?.href, requests: this.result }, undefined, 4), { encoding: 'utf-8' })
             this.reset()
         })
     }
@@ -111,7 +133,7 @@ export class CustomPlaywrightPage {
         if (this.getStatus() === "started") return
         const u = new URL(url)
         this.url = u
-        await this.start({videoFolder: u.hostname})
+        await this.start({ videoFolder: u.hostname })
         if (!this.page) return
         this.time.start = Date.now()
         await this.page.goto(url)
@@ -122,62 +144,71 @@ export class CustomPlaywrightPage {
     }
 
     private async storeState() {
-        fs.mkdirSync(this.data_folder_path, {recursive: true})
+        fs.mkdirSync(this.data_folder_path, { recursive: true })
 
-        await this.context?.storageState({path: this.auth_file_path})
+        await this.context?.storageState({ path: this.auth_file_path })
     }
 
-    async request(data: NetworkItemType) {
-        const browser = await playwright.chromium.launch({headless: true})
-        const page = await browser.newPage()
+    async request(data: BrowserApiRequest) {
+        const browser = await playwright.chromium.launch({ headless: true })
+        const page = await browser.newPage({
+            storageState: this.hasAuthFile() ? this.auth_file_path : undefined
+        })
+        if (data.pageUrl) {
+            await page.goto(data.pageUrl)
+        }
 
-        const res = await page.request.fetch(data.url, {
-            data: data.post_data,
-            method: data.method,
-            headers: data.headers
+        const res = await page.request.fetch(data.request.url, {
+            data: data.request.postData,
+            method: data.request.method,
+            headers: data.request.headers
         })
 
-        const responses = [
-            res.json(),
-            res.text(),
-            res.body(),
+        const responses: { type: "json" | "text" | "buffer"; data: () => Promise<any> }[] = [
+            { type: "json", data: () => res.json() },
+            { type: "buffer", data: () => res.body() },
+            { type: "text", data: () => res.text() },
         ]
 
+        const contentType = res.headers()['content-type']
         const response = await (async () => {
-            for(let i=0;i<responses.length;i++){
+            for (let i = 0; i < responses.length; i++) {
                 const response = responses[i]
-                try{
-                    const data = await response
-                    return data
-                }catch(err){
-    
+                try {
+                    const data = await response.data()
+                    return { type: response.type, data, contentType }
+                } catch (err) {
+                    console.log("Error handling response type:", response.type, err)
                 }
             }
-            return null
+            return { type: null, data: null }
         })()
+
+        await page.close()
+        await browser.close()
 
         return response
     }
 
-    reset(){
+    reset() {
         this.browser = null
         this.context = null
         this.page = null
         this.url = null
-        this.time = {start: -1, stop: -1}
+        this.time = { start: -1, stop: -1 }
         this.result = []
-        this.onBrowserStatusChangeCallbacks.forEach((callback)=>{
-            callback({status: "stopped"})
+        this.onBrowserStatusChangeCallbacks.forEach((callback) => {
+            callback({ status: "stopped" })
         })
     }
 
-    async close(){
+    async close() {
         if (this.getStatus() === "stopped") return
         this.time.stop = Date.now()
-        console.log((this.time.stop - this.time.start)/1000, " seconds")
+        console.log((this.time.stop - this.time.start) / 1000, " seconds")
         await this.storeState()
-        this.page?.close()
-        this.context?.close()
-        this.browser?.close()
+        await this.page?.close()
+        await this.context?.close()
+        await this.browser?.close()
     }
 }

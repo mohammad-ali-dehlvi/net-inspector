@@ -5,12 +5,11 @@ import {
   getMethodColor, inRange, isActive, itemMatchesQuery
 } from "src/client/pages/video_detail/utils/helper";
 import { SEEK_SECONDS, SPEED_OPTIONS, ALL_METHODS } from "src/client/pages/video_detail/utils/constants";
-import KbdPill    from "src/client/pages/video_detail/components/KeyBoardHitPill";
-import OSDToast   from "src/client/pages/video_detail/components/OSDToast";
+import KbdPill from "src/client/pages/video_detail/components/KeyBoardHitPill";
+import OSDToast from "src/client/pages/video_detail/components/OSDToast";
 import VolumeIcon from "src/client/pages/video_detail/components/VolumeIcon";
 import RangeSlider from "src/client/pages/video_detail/components/RangeSlider";
-import NetworkRow  from "src/client/pages/video_detail/components/NetworkRow";
-import DetailPanel from "src/client/pages/video_detail/components/DetailPanel";
+import NetworkRow from "src/client/pages/video_detail/components/NetworkRow";
 import FilterToolbar from "src/client/pages/video_detail/components/FilterToolbar";
 import "src/client/pages/video_detail/components/Main/index.css";
 import { NetworkItemType } from "src/shared/types";
@@ -24,28 +23,28 @@ export default function NetworkVideoPlayer() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const osdTimer = useRef<NodeJS.Timeout>(undefined);
 
-  const [currentTime,    setCurrentTime]    = useState(0);
-  const [duration,       setDuration]       = useState(0);
-  const [selectedIndex,  setSelectedIndex]  = useState<number | null>(null);
-  const [isPlaying,      setIsPlaying]      = useState(false);
-  const [activeCount,    setActiveCount]    = useState(0);
-  const [volume,         setVolume]         = useState(1);
-  const [muted,          setMuted]          = useState(false);
-  const [playbackRate,   setPlaybackRate]   = useState(1);
-  const [showSpeedMenu,  setShowSpeedMenu]  = useState(false);
-  const [osdMsg,         setOsdMsg]         = useState("");
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [activeCount, setActiveCount] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [muted, setMuted] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false);
+  const [osdMsg, setOsdMsg] = useState("");
 
   // ── Range ─────────────────────────────────────────────────────────────────
   const [rangeStart, setRangeStart] = useState(0);
-  const [rangeEnd,   setRangeEnd]   = useState(0);
+  const [rangeEnd, setRangeEnd] = useState(0);
 
   // ── Filter & search state ─────────────────────────────────────────────────
   const [selectedMethods, setSelectedMethods] = useState<Set<string>>(new Set());
-  const [searchQuery,     setSearchQuery]     = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const { video, network } = useMemo(() => {
-    const video   = videoDetails?.success ? videoDetails.data.video : undefined;
+    const video = videoDetails?.success ? videoDetails.data.video : undefined;
     const network: NetworkItemType[] = (videoDetails?.success
       ? videoDetails?.data?.network?.requests
       : null) || [];
@@ -57,7 +56,7 @@ export default function NetworkVideoPlayer() {
   // ── Methods available in current data ─────────────────────────────────────
   const availableMethods = useMemo(() => {
     const seen = new Set<string>();
-    network.forEach(n => seen.add(n.method.toUpperCase()));
+    network.forEach(n => seen.add(n.request.method.toUpperCase()));
     // Preserve canonical order
     return ALL_METHODS.filter(m => seen.has(m));
   }, [network]);
@@ -80,8 +79,8 @@ export default function NetworkVideoPlayer() {
   // ── Seek ──────────────────────────────────────────────────────────────────
   const seekTo = useCallback((t: number) => {
     if (!videoRef.current) return;
-    const lo   = rangeStart;
-    const hi   = effectiveEnd || videoRef.current.duration || 0;
+    const lo = rangeStart;
+    const hi = effectiveEnd || videoRef.current.duration || 0;
     const safe = clamp(t, lo, hi);
     videoRef.current.currentTime = safe;
     setCurrentTime(safe);
@@ -141,7 +140,7 @@ export default function NetworkVideoPlayer() {
     const safe = clamp(v, 0, 1);
     if (!videoRef.current) return;
     videoRef.current.volume = safe;
-    videoRef.current.muted  = safe === 0;
+    videoRef.current.muted = safe === 0;
     setVolume(safe);
     setMuted(safe === 0);
     showOSD(`🔊 ${Math.round(safe * 100)}%`);
@@ -164,11 +163,11 @@ export default function NetworkVideoPlayer() {
         case " ": case "k": e.preventDefault(); togglePlay(); break;
         case "ArrowRight": e.preventDefault();
           if (videoRef.current) { seekTo(videoRef.current.currentTime + SEEK_SECONDS); showOSD(`⏩ +${SEEK_SECONDS}s`); } break;
-        case "ArrowLeft":  e.preventDefault();
+        case "ArrowLeft": e.preventDefault();
           if (videoRef.current) { seekTo(videoRef.current.currentTime - SEEK_SECONDS); showOSD(`⏪ −${SEEK_SECONDS}s`); } break;
-        case "ArrowUp":    e.preventDefault();
+        case "ArrowUp": e.preventDefault();
           if (videoRef.current) changeVolume(videoRef.current.volume + 0.1); break;
-        case "ArrowDown":  e.preventDefault();
+        case "ArrowDown": e.preventDefault();
           if (videoRef.current) changeVolume(videoRef.current.volume - 0.1); break;
         case "m": case "M": e.preventDefault(); toggleMute(); break;
         case ">": {
@@ -212,7 +211,7 @@ export default function NetworkVideoPlayer() {
   const methodFiltered = useMemo(
     () => selectedMethods.size === 0
       ? rangeFiltered
-      : rangeFiltered.filter(item => selectedMethods.has(item.method.toUpperCase())),
+      : rangeFiltered.filter(item => selectedMethods.has(item.request.method.toUpperCase())),
     [rangeFiltered, selectedMethods],
   );
 
@@ -222,8 +221,8 @@ export default function NetworkVideoPlayer() {
     [methodFiltered, searchQuery],
   );
 
-  const isFiltered   = displayedNetwork.length < network.length;
-  const anyFilter    = selectedMethods.size > 0 || searchQuery.trim() !== "";
+  const isFiltered = displayedNetwork.length < network.length;
+  const anyFilter = selectedMethods.size > 0 || searchQuery.trim() !== "";
 
   const scrubPct = effectiveEnd > 0
     ? ((currentTime - rangeStart) / (effectiveEnd - rangeStart)) * 100
@@ -240,7 +239,7 @@ export default function NetworkVideoPlayer() {
         color: "#e2e8f0", outline: "none",
       }}
     >
-      <FloatingDetailPanel item={typeof selectedIndex === "number" ? network[selectedIndex] : null} index={selectedIndex} onClose={()=>setSelectedIndex(null)} />
+      <FloatingDetailPanel item={typeof selectedIndex === "number" ? network[selectedIndex] : null} index={selectedIndex} onClose={() => setSelectedIndex(null)} />
       {/* ── Top Bar ── */}
       <div style={{ borderBottom: "1px solid #141820", padding: "0 18px", height: "44px", display: "flex", alignItems: "center", gap: "14px", background: "#0d0f14", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -260,8 +259,8 @@ export default function NetworkVideoPlayer() {
           </span>
         )}
         <Link to="/videos" className="footer-back-link">
-                ← ALL VIDEOS
-              </Link>
+          ← ALL VIDEOS
+        </Link>
         <div style={{ marginLeft: "auto", display: "flex", gap: "12px", alignItems: "center" }}>
           <KbdPill keys={["Space"]} label="play" />
           <KbdPill keys={["←", "→"]} label={`${SEEK_SECONDS}s`} />
@@ -386,7 +385,7 @@ export default function NetworkVideoPlayer() {
             <div
               style={{ position: "relative", height: "32px", background: "#0d0f14", borderRadius: "4px", overflow: "hidden", cursor: "pointer" }}
               onClick={e => {
-                const r   = e.currentTarget.getBoundingClientRect();
+                const r = e.currentTarget.getBoundingClientRect();
                 const pct = (e.clientX - r.left) / r.width;
                 seekTo(pct * duration);
               }}
@@ -404,13 +403,13 @@ export default function NetworkVideoPlayer() {
                 </>
               )}
               {duration > 0 && network.map((item, i) => {
-                const color  = getMethodColor(item.method as any);
+                const color = getMethodColor(item.request.method as any);
                 const active = isActive(item, currentTime);
                 const inside = inRange(item, rangeStart, effectiveEnd);
                 // Dim further if filtered out by method/search
                 const inDisplay = displayedNetwork.includes(item);
                 return (
-                  <div key={i} title={item.url} style={{ position: "absolute", left: `${(item.start_seconds / duration) * 100}%`, width: `${Math.max(((item.end_seconds - item.start_seconds) / duration) * 100, 0.4)}%`, top: `${(i % 4) * 7 + 4}px`, height: "5px", background: color, opacity: active ? 1 : inside && inDisplay ? 0.35 : 0.07, borderRadius: "2px", minWidth: "3px", boxShadow: active ? `0 0 6px ${color}` : "none", transition: "opacity .2s" }} />
+                  <div key={i} title={item.request.url} style={{ position: "absolute", left: `${(item.startSeconds / duration) * 100}%`, width: `${Math.max(((item.endSeconds - item.startSeconds) / duration) * 100, 0.4)}%`, top: `${(i % 4) * 7 + 4}px`, height: "5px", background: color, opacity: active ? 1 : inside && inDisplay ? 0.35 : 0.07, borderRadius: "2px", minWidth: "3px", boxShadow: active ? `0 0 6px ${color}` : "none", transition: "opacity .2s" }} />
                 );
               })}
               {duration > 0 && (
@@ -422,10 +421,10 @@ export default function NetworkVideoPlayer() {
           {/* Stats */}
           <div style={{ padding: "10px 14px", borderTop: "1px solid #141820", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
             {["GET", "POST", "OTHER"].map(type => {
-              const all  = type === "OTHER"
-                ? network.filter(n => n.method !== "GET" && n.method !== "POST")
-                : network.filter(n => n.method === type);
-              const vis  = all.filter(item => displayedNetwork.includes(item));
+              const all = type === "OTHER"
+                ? network.filter(n => n.request.method !== "GET" && n.request.method !== "POST")
+                : network.filter(n => n.request.method === type);
+              const vis = all.filter(item => displayedNetwork.includes(item));
               const color = getMethodColor((type === "OTHER" ? "OPTIONS" : type) as any);
               return (
                 <div key={type} style={{ textAlign: "center" }}>
@@ -452,25 +451,27 @@ export default function NetworkVideoPlayer() {
         {/* ══ CENTER: Network List ══ */}
         <div style={{ flex: 1, flexShrink: 0, borderRight: "1px solid #141820", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
 
-          {/* ── Filter Toolbar ── */}
-          <FilterToolbar
-            availableMethods={availableMethods}
-            selectedMethods={selectedMethods}
-            onToggleMethod={toggleMethod}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            totalCount={rangeFiltered.length}
-            visibleCount={displayedNetwork.length}
-          />
+          <div style={{ zIndex: 15 }} >
+            {/* ── Filter Toolbar ── */}
+            <FilterToolbar
+              availableMethods={availableMethods}
+              selectedMethods={selectedMethods}
+              onToggleMethod={toggleMethod}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              totalCount={rangeFiltered.length}
+              visibleCount={displayedNetwork.length}
+            />
 
-          {/* ── List header ── */}
-          <div style={{ padding: "8px 14px", borderBottom: "1px solid #141820", fontSize: "9px", color: "#3d4451", letterSpacing: "0.1em", display: "flex", gap: "8px", alignItems: "center", flexShrink: 0, background: "#0d0f14" }}>
-            <span>URL — click to seek + inspect</span>
-            <span style={{ marginLeft: "auto", flexShrink: 0 }}>START → END</span>
+            {/* ── List header ── */}
+            <div style={{ padding: "8px 14px", borderBottom: "1px solid #141820", fontSize: "9px", color: "#3d4451", letterSpacing: "0.1em", display: "flex", gap: "8px", alignItems: "center", flexShrink: 0, background: "#0d0f14" }}>
+              <span>URL — click to seek + inspect</span>
+              <span style={{ marginLeft: "auto", flexShrink: 0 }}>START → END</span>
+            </div>
           </div>
 
           {/* ── Scrollable rows ── */}
-          <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflowY: "scroll", display: "flex", flexDirection: "column" }}>
+          <div style={{ zIndex: 10, position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflowY: "scroll", display: "flex", flexDirection: "column" }}>
             {/* Spacer for the two sticky headers above */}
             <div style={{ flexShrink: 0 }}>
               <FilterToolbar
@@ -497,8 +498,8 @@ export default function NetworkVideoPlayer() {
                   {searchQuery
                     ? "no results"
                     : selectedMethods.size > 0
-                    ? "no matching methods"
-                    : "no requests in range"}
+                      ? "no matching methods"
+                      : "no requests in range"}
                 </span>
                 <span style={{ fontSize: "9px", color: "#1e2433" }}>
                   {searchQuery

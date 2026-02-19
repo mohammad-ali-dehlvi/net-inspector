@@ -7,15 +7,15 @@ import { videoService } from "src/client/services"
 
 
 function VideoDetail() {
-    const {name=""} = useParams()
-    const {videoDetails, videoDetailLoading, videoDetailError, getVideoDetails} = useVideoDetailContext()
+    const { name = "" } = useParams()
+    const { videoDetails, videoDetailLoading, videoDetailError, getVideoDetails } = useVideoDetailContext()
 
-    useEffect(()=>{
+    useEffect(() => {
         getVideoDetails(name)
     }, [])
 
     return (
-        <div style={{width: "100%", height: "100vh", }} >
+        <div style={{ width: "100%", height: "100vh", }} >
             {videoDetailLoading && <p>Loading...</p>}
             {videoDetailError && <p>{videoDetailError.message}</p>}
             {videoDetails && !videoDetails.success && <p>{videoDetails.message}</p>}

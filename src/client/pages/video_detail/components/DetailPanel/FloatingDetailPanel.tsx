@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import DetailPanel from "src/client/pages/video_detail/components/DetailPanel";
 import { NetworkItemType } from "src/shared/types";
 import { getMethodColor, formatSeconds } from "src/client/pages/video_detail/utils/helper";
+import _ from "lodash";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Rect { x: number; y: number; w: number; h: number }
@@ -28,10 +29,10 @@ const HANDLE_SIZE = 6; // px hit-area for edge handles
 function clampRect(r: Rect): Rect {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const w  = Math.max(MIN_W, Math.min(r.w, vw));
-  const h  = Math.max(MIN_H, Math.min(r.h, vh));
-  const x  = Math.max(0, Math.min(r.x, vw - w));
-  const y  = Math.max(0, Math.min(r.y, vh - h));
+  const w = Math.max(MIN_W, Math.min(r.w, vw));
+  const h = Math.max(MIN_H, Math.min(r.h, vh));
+  const x = Math.max(0, Math.min(r.x, vw - w));
+  const y = Math.max(0, Math.min(r.y, vh - h));
   return { x, y, w, h };
 }
 
@@ -49,7 +50,7 @@ export default function FloatingDetailPanel({
 }: FloatingDetailPanelProps) {
   const [minimized, setMinimized] = useState(false);
   const [rect, setRect] = useState<Rect>(() => ({
-    x: Math.max(0, window.innerWidth  - DEFAULT_W - 24),
+    x: Math.max(0, window.innerWidth - DEFAULT_W - 24),
     y: Math.max(0, window.innerHeight - DEFAULT_H - 24),
     w: DEFAULT_W,
     h: DEFAULT_H,
@@ -70,16 +71,15 @@ export default function FloatingDetailPanel({
       if (!dragStart.current) return;
       const dx = me.clientX - dragStart.current.mx;
       const dy = me.clientY - dragStart.current.my;
-      console.log("move: ", dragStart.current)
-      setRect(r => dragStart.current ? clampRect({ ...r, x: dragStart.current!.rx + dx, y: dragStart.current!.ry + dy }): r);
+      setRect(r => dragStart.current ? clampRect({ ...r, x: dragStart.current!.rx + dx, y: dragStart.current!.ry + dy }) : r);
     };
     const onUp = () => {
       dragStart.current = null;
       window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup",   onUp);
+      window.removeEventListener("mouseup", onUp);
     };
     window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup",   onUp);
+    window.addEventListener("mouseup", onUp);
   }, [rect.x, rect.y]);
 
   // ── Resize state ────────────────────────────────────────────────────────────
@@ -114,10 +114,10 @@ export default function FloatingDetailPanel({
     const onUp = () => {
       resizeStart.current = null;
       window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup",   onUp);
+      window.removeEventListener("mouseup", onUp);
     };
     window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup",   onUp);
+    window.addEventListener("mouseup", onUp);
   }, [rect]);
 
   // ── Minimize toggle ─────────────────────────────────────────────────────────
@@ -139,7 +139,7 @@ export default function FloatingDetailPanel({
       setMinimized(false);
       setRect(r => ({ ...r, h: preMinimizeH.current }));
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item]);
 
   // ── Keyboard: Esc to close ──────────────────────────────────────────────────
@@ -159,17 +159,17 @@ export default function FloatingDetailPanel({
     nw: "nwse-resize", se: "nwse-resize",
   };
 
-  const mc     = item ? getMethodColor(item.method as any) : "#4a5568";
-  const title  = index !== null ? `REQUEST #${String(index + 1).padStart(2, "0")}` : "REQUEST DETAILS";
-  const methodLabel = item?.method ?? "";
+  const mc = item ? getMethodColor(item.request.method as any) : "#4a5568";
+  const title = index !== null ? `REQUEST #${String(index + 1).padStart(2, "0")}` : "REQUEST DETAILS";
+  const methodLabel = _.get(item, 'request.method', '')
 
   return (
     <div
       style={{
         position: "fixed",
         left: rect.x,
-        top:  rect.y,
-        width:  rect.w,
+        top: rect.y,
+        width: rect.w,
         height: minimized ? HEADER_H : rect.h,
         zIndex: 1000,
         display: "flex",
@@ -188,7 +188,7 @@ export default function FloatingDetailPanel({
       {!minimized && (
         <>
           {/* Edges */}
-          {(["n","s","e","w"] as ResizeDir[]).map(dir => (
+          {(["n", "s", "e", "w"] as ResizeDir[]).map(dir => (
             <div
               key={dir}
               onMouseDown={onResizeMouseDown(dir)}
@@ -197,14 +197,14 @@ export default function FloatingDetailPanel({
                 cursor: CURSORS[dir],
                 zIndex: 10,
                 ...(dir === "n" ? { top: 0, left: HANDLE_SIZE, right: HANDLE_SIZE, height: HANDLE_SIZE } :
-                    dir === "s" ? { bottom: 0, left: HANDLE_SIZE, right: HANDLE_SIZE, height: HANDLE_SIZE } :
+                  dir === "s" ? { bottom: 0, left: HANDLE_SIZE, right: HANDLE_SIZE, height: HANDLE_SIZE } :
                     dir === "e" ? { right: 0, top: HANDLE_SIZE, bottom: HANDLE_SIZE, width: HANDLE_SIZE } :
-                                  { left: 0, top: HANDLE_SIZE, bottom: HANDLE_SIZE, width: HANDLE_SIZE }),
+                      { left: 0, top: HANDLE_SIZE, bottom: HANDLE_SIZE, width: HANDLE_SIZE }),
               }}
             />
           ))}
           {/* Corners */}
-          {(["ne","nw","se","sw"] as ResizeDir[]).map(dir => (
+          {(["ne", "nw", "se", "sw"] as ResizeDir[]).map(dir => (
             <div
               key={dir}
               onMouseDown={onResizeMouseDown(dir)}
@@ -214,9 +214,9 @@ export default function FloatingDetailPanel({
                 cursor: CURSORS[dir],
                 zIndex: 11,
                 ...(dir === "ne" ? { top: 0, right: 0 } :
-                    dir === "nw" ? { top: 0, left: 0 } :
+                  dir === "nw" ? { top: 0, left: 0 } :
                     dir === "se" ? { bottom: 0, right: 0 } :
-                                   { bottom: 0, left: 0 }),
+                      { bottom: 0, left: 0 }),
               }}
             />
           ))}
@@ -268,7 +268,7 @@ export default function FloatingDetailPanel({
             fontFamily: "'JetBrains Mono', monospace",
             flexShrink: 0,
           }}>
-            {formatSeconds(item.start_seconds)} → {formatSeconds(item.end_seconds)}
+            {formatSeconds(item.startSeconds)} → {formatSeconds(item.endSeconds)}
           </span>
         )}
 
