@@ -1,0 +1,140 @@
+/* src/client/pages/video_detail/components/NetworkRow/style.module.css */
+
+.rowContainer {
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    position: relative;
+    border-left: 2px solid transparent;
+}
+
+.rowContainer.isHighlighted {
+    border-left-color: var(--method-color);
+    background: var(--method-color-alpha-10);
+}
+
+.rowContainer.isSelected {
+    border-left-color: #3b5bdb;
+    background: rgba(59, 91, 219, 0.08);
+}
+
+.rowContainer.isOdd:not(.isHighlighted):not(.isSelected) {
+    background: rgba(255, 255, 255, 0.015);
+}
+
+.pulseDot {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--method-color);
+    box-shadow: 0 0 6px var(--method-color);
+    animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        opacity: 0.7;
+    }
+
+    50% {
+        transform: scale(1.1);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(0.95);
+        opacity: 0.7;
+    }
+}
+
+.flexWrapper {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.indexNumber {
+    color: var(--text-deep);
+    font-size: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    min-width: 18px;
+    padding-top: 1px;
+    user-select: none;
+}
+
+.contentBody {
+    flex: 1;
+    min-width: 0;
+}
+
+.urlHeader {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+.urlHeader.highlightedText {
+    color: var(--text-main);
+}
+
+.domain {
+    color: var(--text-dark);
+}
+
+.path {
+    color: var(--text-dim);
+}
+
+.pathHighlighted {
+    color: #cbd5e0;
+}
+
+.metaRow {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.timeInfo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.icon {
+    color: var(--text-darker);
+}
+
+.arrow {
+    color: var(--text-darker);
+    margin: 0 2px;
+}
+
+.duration {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-deep);
+}
+
+.durationHighlighted {
+    color: var(--method-color-alpha-cc);
+}
+
+.seekLabel {
+    margin-left: auto;
+    font-size: 9px;
+    color: var(--text-darker);
+    font-family: 'JetBrains Mono', monospace;
+}

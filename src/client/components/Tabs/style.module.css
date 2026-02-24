@@ -1,0 +1,224 @@
+/* ─── Root ─────────────────────────────────────────────────────────────────── */
+
+.root {
+    display: flex;
+    flex-direction: row;
+    font-family: var(--font-display);
+    color: var(--text-main);
+}
+
+/* ─── Tab List ─────────────────────────────────────────────────────────────── */
+
+.list {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    border-bottom: 1px solid var(--border-secondary);
+    background: var(--bg-dark-secondary);
+    padding: 0 4px;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.list::-webkit-scrollbar {
+    display: none;
+}
+
+/* ── Variant: pills ── */
+.listPills {
+    border-bottom: none;
+    background: var(--bg-dark-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: 10px;
+    padding: 4px;
+    gap: 4px;
+    display: inline-flex;
+    width: fit-content;
+}
+
+/* ── Variant: flush ── */
+.listFlush {
+    background: transparent;
+    border-bottom-color: var(--border-primary);
+    padding: 0;
+    gap: 0;
+}
+
+/* ─── Sliding Indicator ─────────────────────────────────────────────────────── */
+
+.indicator {
+    position: absolute;
+    bottom: -1px;
+    height: 2px;
+    border-radius: 2px 2px 0 0;
+    background: var(--theme-info);
+    transition:
+        left 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+        width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--theme-info) 60%, transparent);
+}
+
+.indicatorSuccess {
+    background: var(--theme-success);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--theme-success) 50%, transparent);
+}
+
+.indicatorWarning {
+    background: var(--theme-warning);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--theme-warning) 50%, transparent);
+}
+
+.indicatorError {
+    background: var(--theme-error);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--theme-error) 50%, transparent);
+}
+
+/* ─── Tab Button ────────────────────────────────────────────────────────────── */
+
+.tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 18px 10px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    transition: color 0.18s ease, background 0.18s ease;
+    white-space: nowrap;
+    outline: none;
+    border-radius: 6px 6px 0 0;
+    user-select: none;
+}
+
+.tab:hover:not(.tabSelected):not(:disabled) {
+    color: var(--text-muted);
+    background: color-mix(in srgb, var(--border-secondary) 40%, transparent);
+}
+
+.tab:focus-visible {
+    outline: 2px solid var(--theme-info);
+    outline-offset: -2px;
+}
+
+.tab:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+/* ── Active state: info (default) ── */
+.tabSelected {
+    color: var(--theme-info);
+}
+
+/* ── Active state: other colors ── */
+.tabSelectedSuccess {
+    color: var(--theme-success);
+}
+
+.tabSelectedWarning {
+    color: var(--theme-warning);
+}
+
+.tabSelectedError {
+    color: var(--theme-error);
+}
+
+/* ── Variant: pills tab ── */
+.tabPills {
+    border-bottom: none;
+    border-radius: 7px;
+    padding: 8px 16px;
+}
+
+.tabPillsSelected {
+    background: var(--border-secondary);
+    box-shadow: 0 0 0 1px var(--border-secondary);
+}
+
+/* ── Variant: flush tab ── */
+.tabFlush {
+    border-radius: 0;
+    padding: 12px 20px;
+}
+
+/* ─── Icon ──────────────────────────────────────────────────────────────────── */
+
+.icon {
+    display: flex;
+    align-items: center;
+    opacity: 0.75;
+    transition: opacity 0.18s;
+}
+
+.tabSelected .icon,
+.tabSelectedSuccess .icon,
+.tabSelectedWarning .icon,
+.tabSelectedError .icon {
+    opacity: 1;
+}
+
+/* ─── Badge ─────────────────────────────────────────────────────────────────── */
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    background: var(--border-secondary);
+    color: var(--text-muted);
+    transition: background 0.18s, color 0.18s;
+}
+
+.badgeSelectedInfo {
+    background: color-mix(in srgb, var(--theme-info) 18%, transparent);
+    color: var(--theme-info);
+}
+
+.badgeSelectedSuccess {
+    background: color-mix(in srgb, var(--theme-success) 18%, transparent);
+    color: var(--theme-success);
+}
+
+.badgeSelectedWarning {
+    background: color-mix(in srgb, var(--theme-warning) 18%, transparent);
+    color: var(--theme-warning);
+}
+
+.badgeSelectedError {
+    background: color-mix(in srgb, var(--theme-error) 18%, transparent);
+    color: var(--theme-error);
+}
+
+/* ─── Panel ─────────────────────────────────────────────────────────────────── */
+
+.panel {
+    outline: none;
+    animation: tabFadeIn 0.2s ease both;
+}
+
+@keyframes tabFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

@@ -1,178 +1,120 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { getMethodColor } from "src/client/pages/video_detail/utils/helper";
+import { useVideoDetailContext } from "src/client/pages/video_detail/context/videoDetail";
+import { useVideoDetailPlayerContext } from "src/client/pages/video_detail/context/VideoDetailPlayerContext";
+import cssStyles from "src/client/pages/video_detail/components/FilterToolbar/style.module.css";
+import MultiSelectAutocomplete from "src/client/components/MultiAutocomplete";
+import { NetworkItemType } from "src/shared/types";
+import Chip from "src/client/components/Chip";
 
+interface FilterToolbarProps { }
 
-// ─── FilterToolbar ────────────────────────────────────────────────────────────
-interface FilterToolbarProps {
-  availableMethods: string[];
-  selectedMethods: Set<string>;
-  onToggleMethod: (m: string) => void;
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
-  totalCount: number;
-  visibleCount: number;
-}
+export default function FilterToolbar({ }: FilterToolbarProps) {
+  const { availableTags } = useVideoDetailContext();
+  const {
+    selectedTags,
+    setSelectedTags,
+    searchQueries,
+    setSearchQueries,
+  } = useVideoDetailPlayerContext();
+  const searchRef = useRef<HTMLInputElement>(null);
 
-export default function FilterToolbar({
-  availableMethods,
-  selectedMethods,
-  onToggleMethod,
-  searchQuery,
-  onSearchChange,
-  totalCount,
-  visibleCount,
-}: FilterToolbarProps) {
-  const isFiltered = selectedMethods.size > 0 || searchQuery.trim() !== "";
-  const searchRef  = useRef<HTMLInputElement>(null);
+  const onToggleTag = (tag: string) => {
+    setSelectedTags((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(tag)) {
+        newSet.delete(tag);
+      } else {
+        newSet.add(tag);
+      }
+      return newSet;
+    });
+  };
 
   return (
-    <div style={{
-      borderBottom: "1px solid #141820",
-      background: "#0a0c10",
-      flexShrink: 0,
-    }}>
+    <div className={cssStyles.container}>
       {/* ── Search row ── */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: "8px",
-        padding: "8px 14px",
-        borderBottom: "1px solid #0f1218",
-      }}>
-        {/* Magnifier icon */}
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#3d4451" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      <div className={cssStyles.searchRow}>
+        <svg
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="var(--text-deep)"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={cssStyles.searchIcon}
+        >
+          <circle cx="11" cy="11" r="8" />
+          <line x1="21" y1="21" x2="16.65" y2="16.65" />
         </svg>
 
         <input
           ref={searchRef}
           type="text"
           placeholder="Search url, method, headers, body…"
-          value={searchQuery}
-          onChange={e => onSearchChange(e.target.value)}
-          style={{
-            flex: 1,
-            background: "transparent",
-            border: "none",
-            outline: "none",
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: "10px",
-            color: "#a0aec0",
-            letterSpacing: "0.02em",
-          }}
+          value={searchQueries[0] || ""}
+          onChange={(e) => setSearchQueries([e.target.value])}
+          className={cssStyles.searchInput}
         />
 
-        {/* Clear button */}
-        {searchQuery && (
+        {searchQueries && (
           <button
-            onClick={() => { onSearchChange(""); searchRef.current?.focus(); }}
-            style={{
-              background: "none", border: "none", cursor: "pointer",
-              color: "#4a5568", fontSize: "11px", padding: "0 2px",
-              lineHeight: 1, transition: "color .15s",
-              fontFamily: "'JetBrains Mono', monospace",
+            onClick={() => {
+              setSearchQueries([""]);
+              searchRef.current?.focus();
             }}
+            className={cssStyles.clearSearchBtn}
             title="Clear search"
           >
             ✕
           </button>
         )}
 
-        {/* Result count */}
-        <span style={{
-          fontSize: "9px", color: isFiltered ? "#fb923c" : "#2d3748",
-          fontFamily: "'JetBrains Mono', monospace",
-          letterSpacing: "0.06em", flexShrink: 0,
-          transition: "color .2s",
-        }}>
+        {/* <span
+          className={`${cssStyles.resultCount} ${isFiltered ? cssStyles.resultCountFiltered : ""
+            }`}
+        >
           {isFiltered ? `${visibleCount}/${totalCount}` : `${totalCount}`}
-        </span>
+        </span> */}
       </div>
 
-      {/* ── Method chips row ── */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: "5px",
-        padding: "7px 14px",
-        overflowX: "auto",
-        scrollbarWidth: "none",
-      }}>
-        <span style={{ fontSize: "8px", color: "#2d3748", letterSpacing: "0.08em", marginRight: "2px", flexShrink: 0 }}>
-          METHOD
-        </span>
 
-        {/* "All" chip */}
-        <button
+
+      {/* ── Method chips row ── */}
+      <div className={cssStyles.chipsRow}>
+        <span className={cssStyles.methodLabel}>METHOD</span>
+
+        <Chip variant={selectedTags.size === 0 ? "active" : undefined}
           onClick={() => {
-            if (selectedMethods.size === 0) {
-              // select all available
-              availableMethods.forEach(m => onToggleMethod(m));
+            if (selectedTags.size === 0) {
+              availableTags.forEach((m) => onToggleTag(m));
             } else {
-              // deselect all
-              availableMethods.forEach(m => {
-                if (selectedMethods.has(m)) onToggleMethod(m);
+              availableTags.forEach((m) => {
+                if (selectedTags.has(m)) onToggleTag(m);
               });
             }
           }}
-          style={{
-            padding: "2px 8px",
-            borderRadius: "3px",
-            border: `1px solid ${selectedMethods.size === 0 ? "#1e2433" : "#1e2433"}`,
-            background: selectedMethods.size === 0 ? "rgba(255,255,255,0.06)" : "transparent",
-            color: selectedMethods.size === 0 ? "#a0aec0" : "#3d4451",
-            fontSize: "9px", fontWeight: "700",
-            letterSpacing: "0.08em",
-            cursor: "pointer",
-            fontFamily: "'JetBrains Mono', monospace",
-            transition: "all .12s",
-            flexShrink: 0,
-          }}
-        >
-          ALL
-        </button>
+        >ALL</Chip>
 
-        {availableMethods.map(method => {
-          const color   = getMethodColor(method as any);
-          const active  = selectedMethods.has(method);
-          return (
-            <button
-              key={method}
-              onClick={() => onToggleMethod(method)}
-              style={{
-                padding: "2px 8px",
-                borderRadius: "3px",
-                border: `1px solid ${active ? color + "60" : "#1a2030"}`,
-                background: active ? `${color}18` : "transparent",
-                color: active ? color : "#3d4451",
-                fontSize: "9px", fontWeight: "700",
-                letterSpacing: "0.08em",
-                cursor: "pointer",
-                fontFamily: "'JetBrains Mono', monospace",
-                transition: "all .12s",
-                flexShrink: 0,
-                boxShadow: active ? `0 0 8px ${color}22` : "none",
-              }}
-            >
-              {method}
-            </button>
-          );
+        {availableTags.map((tag) => {
+          const color = getMethodColor(tag as any, true);
+          const active = selectedTags.has(tag);
+
+          return <Chip variant={active ? color as any : undefined} onClick={() => onToggleTag(tag)} >
+            {tag}
+          </Chip>
         })}
 
-        {/* Clear filters shortcut */}
-        {selectedMethods.size > 0 && (
+        {selectedTags.size > 0 && (
           <button
-            onClick={() => availableMethods.forEach(m => { if (selectedMethods.has(m)) onToggleMethod(m); })}
-            style={{
-              marginLeft: "auto",
-              padding: "2px 7px",
-              borderRadius: "3px",
-              border: "1px solid #1a2030",
-              background: "transparent",
-              color: "#3d4451",
-              fontSize: "8px",
-              cursor: "pointer",
-              fontFamily: "'JetBrains Mono', monospace",
-              letterSpacing: "0.06em",
-              flexShrink: 0,
-              transition: "color .12s",
-            }}
+            onClick={() =>
+              availableTags.forEach((m) => {
+                if (selectedTags.has(m)) onToggleTag(m);
+              })
+            }
+            className={cssStyles.clearAllBtn}
           >
             clear
           </button>

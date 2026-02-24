@@ -1,0 +1,91 @@
+.container {
+    border-bottom: 1px solid #141820;
+    background: var(--bg-dark-tertiary);
+    flex-shrink: 0;
+}
+
+/* --- Search Row --- */
+.searchRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border-divider);
+}
+
+.searchIcon {
+    flex-shrink: 0;
+}
+
+.searchInput {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+}
+
+.clearSearchBtn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-dark);
+    font-size: 11px;
+    padding: 0 2px;
+    line-height: 1;
+    transition: color 0.15s;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.resultCount {
+    font-size: 9px;
+    color: var(--text-darker);
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+    transition: color 0.2s;
+}
+
+.resultCountFiltered {
+    color: var(--theme-warning);
+}
+
+/* --- Method Chips Row --- */
+.chipsRow {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 14px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.chipsRow::-webkit-scrollbar {
+    display: none;
+}
+
+.methodLabel {
+    font-size: 8px;
+    color: var(--text-darker);
+    letter-spacing: 0.08em;
+    margin-right: 2px;
+    flex-shrink: 0;
+}
+
+.clearAllBtn {
+    margin-left: auto;
+    padding: 2px 7px;
+    border-radius: 3px;
+    border: 1px solid #1a2030;
+    background: transparent;
+    color: var(--text-deep);
+    font-size: 8px;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+    transition: color 0.12s;
+}

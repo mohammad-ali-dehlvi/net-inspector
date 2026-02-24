@@ -1,8 +1,10 @@
 import express from "express"
 import { CustomPlaywrightPage } from "src/server/utils/CustomPlaywright"
 import { BrowserApiRequest, BrowserApiResponse, BrowserStartRequest, BrowserStartResponse, BrowserStatusResponse, BrowserStopResponse } from "src/server/routers/browser/types"
+import { browserSSE } from "src/server/routers/browser/sse"
 
 const router = express.Router()
+browserSSE.initialize(router)
 
 router.get<{}, BrowserStatusResponse>("/status", (req, res) => {
     res.status(200).json({
@@ -22,7 +24,9 @@ router.post<BrowserStartRequest, BrowserStartResponse, {}, BrowserStartRequest>(
 
 router.post<{}, BrowserStopResponse>("/stop", async (req, res) => {
     try {
-        await CustomPlaywrightPage.getInstange().close()
+        CustomPlaywrightPage.getInstange().close().catch((err) => {
+            browserSSE.sendEvent({ type: "stop_error", data: err instanceof Error ? err.message : "Unknown error while closing the browser" })
+        })
         return res.status(200).json({ success: true })
     } catch (err) {
         return res.status(200).json({ success: false })

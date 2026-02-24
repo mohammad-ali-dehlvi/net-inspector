@@ -1,0 +1,38 @@
+.collapse {
+    overflow: hidden;
+    transition: none;
+}
+
+/* Vertical */
+.collapseVertical {
+    height: 0;
+    transition: height 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.collapseVerticalIn {
+    height: var(--collapse-size);
+}
+
+/* Horizontal */
+.collapseHorizontal {
+    width: 0;
+    transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.collapseHorizontalIn {
+    width: var(--collapse-size);
+}
+
+/* Inner wrapper */
+.inner {
+    overflow: hidden;
+}
+
+.innerVertical {
+    width: 100%;
+}
+
+.innerHorizontal {
+    height: 100%;
+    display: flex;
+}

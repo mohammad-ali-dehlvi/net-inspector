@@ -1,13 +1,31 @@
-import React, { useMemo } from "react";
+import React, { CSSProperties, useEffect, useMemo } from "react";
 import { buildDataUrl, createObjectUrlFromBinaryString, isString, normalizeBinaryString, safeJsonParse } from "src/client/pages/video_detail/utils/helper";
-import styles from "src/client/pages/video_detail/components/ContentRenderer/index.module.css";
+import cssStyles from "src/client/pages/video_detail/components/ContentRenderer/index.module.css";
+import { useVideoDetailContext } from "src/client/pages/video_detail/context/videoDetail";
+import { useVideoDetailPlayerContext } from "src/client/pages/video_detail/context/VideoDetailPlayerContext";
+import { NetworkItemType } from "src/shared/types";
 
 type ContentRendererProps = {
-    contentType?: string | null
-    data: unknown
+    contentType?: string | null;
+    data?: string | NetworkItemType['response']['body'] | null;
 }
 
-export default function ContentRenderer({ contentType, data }: ContentRendererProps) {
+export default function ContentRenderer({ contentType: propContentType, data: propData }: ContentRendererProps) {
+    const { requests } = useVideoDetailContext()
+    const { selectedIndex } = useVideoDetailPlayerContext()
+
+    const item = !!requests && selectedIndex !== null ? requests[selectedIndex] : null;
+
+    const contentType =
+        propContentType ||
+        (typeof propData === "object" && !!propData && "contentType" in propData ?
+            propData['contentType'] :
+            undefined
+        ) ||
+        item?.response.headers["content-type"] ||
+        null
+    const data = propData || item?.response.body
+
     const normalizedType = contentType?.toLowerCase() ?? ""
 
     const parsedJson = useMemo(() => {
@@ -24,10 +42,7 @@ export default function ContentRenderer({ contentType, data }: ContentRendererPr
             normalizedType.startsWith("video/") ||
             normalizedType.startsWith("audio/")
         ) {
-            // const normalized = normalizeBinaryString(data)
             try {
-                // const url = createObjectUrlFromBinaryString(normalizedType, data)
-                // console.log("created object url: ", { url, normalizedType, data })
                 return `data:${normalizedType};base64,${data}`
             } catch (err) {
                 console.log(err)
@@ -38,10 +53,47 @@ export default function ContentRenderer({ contentType, data }: ContentRendererPr
         return null
     }, [normalizedType, data])
 
+    if (typeof data === "object" && !!data && "url" in data) {
+        const url = `${data.url}`
+        const contentType = normalizedType
+        const style: CSSProperties = { width: "100%", maxWidth: "400px", maxHeight: "200px", objectFit: "contain", color: "#94a3b8" }
+        if (contentType?.startsWith("image/")) {
+            return <img src={url} className={cssStyles.image} style={style} />
+        } else if (data.contentType?.startsWith("video/")) {
+            return (
+                <video controls className={cssStyles.media} style={style}>
+                    <source src={url} type={data.contentType} />
+                </video>
+            )
+        } else if (contentType?.startsWith("audio/")) {
+            return (
+                <audio controls style={{ width: "100%" }}>
+                    <source src={url} type={data.contentType} />
+                </audio>
+            )
+        } else if (contentType?.startsWith("text/html")) {
+            return (
+                <iframe
+                    title="html-preview"
+                    src={data.url}
+                    className={cssStyles.iframe}
+                    sandbox=""
+                />
+            )
+        }
+        return (
+            <div style={style} >
+                <p style={{ wordBreak: "break-word" }} >URL: <span>{url}</span></p>
+                {/* TODO: handle later (it is downloading JS files) */}
+                {/* <iframe src={url} /> */}
+            </div>
+        )
+    }
+
     // ---- JSON ----
     if (parsedJson) {
         return (
-            <pre className={styles.pre}>
+            <pre className={cssStyles.pre}>
                 {JSON.stringify(parsedJson, null, 2)}
             </pre>
         )
@@ -49,7 +101,7 @@ export default function ContentRenderer({ contentType, data }: ContentRendererPr
 
     // ---- Plain Text ----
     if (normalizedType.startsWith("text/plain") && isString(data)) {
-        return <pre className={styles.pre}>{data}</pre>
+        return <pre className={cssStyles.pre}>{data}</pre>
     }
 
     // ---- HTML ----
@@ -58,7 +110,7 @@ export default function ContentRenderer({ contentType, data }: ContentRendererPr
             <iframe
                 title="html-preview"
                 srcDoc={data}
-                className={styles.iframe}
+                className={cssStyles.iframe}
                 sandbox=""
             />
         )
@@ -66,13 +118,13 @@ export default function ContentRenderer({ contentType, data }: ContentRendererPr
 
     // ---- Image / GIF ----
     if (normalizedType.startsWith("image/") && binaryDataUrl) {
-        return <img src={binaryDataUrl} className={styles.image} />
+        return <img src={binaryDataUrl} className={cssStyles.image} />
     }
 
     // ---- Video ----
     if (normalizedType.startsWith("video/") && binaryDataUrl) {
         return (
-            <video controls className={styles.media}>
+            <video controls className={cssStyles.media}>
                 <source src={binaryDataUrl} type={normalizedType} />
             </video>
         )
@@ -89,7 +141,7 @@ export default function ContentRenderer({ contentType, data }: ContentRendererPr
 
     // ---- Fallback ----
     return (
-        <pre className={styles.pre}>
+        <pre className={cssStyles.pre}>
             {typeof data === "string"
                 ? (() => {
                     try {

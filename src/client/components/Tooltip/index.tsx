@@ -1,5 +1,6 @@
-import React, { useState, useRef, useLayoutEffect, useEffect, ReactElement, JSXElementConstructor } from 'react';
+import React, { useState, useRef, useLayoutEffect, useEffect, ReactElement, JSXElementConstructor, CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
+import cssStyles from "src/client/components/Tooltip/style.module.css"
 
 export type Placement = 'top' | 'bottom' | 'left' | 'right';
 
@@ -8,23 +9,58 @@ interface TooltipProps<P, T extends string | JSXElementConstructor<any>> {
     children: ReactElement<P, T>;
     title: React.ReactNode;
     position?: Placement;
+    arrow?: boolean;
+    titleStyle?: CSSProperties
+    arrowStyle?: CSSProperties
 }
 
-export default function Tooltip<P extends object, T extends string | JSXElementConstructor<any>>({ children, title, position = 'bottom' }: TooltipProps<P, T>) {
+export default function Tooltip<P extends object, T extends string | JSXElementConstructor<any>>({ children, title, position = 'bottom', arrow = false, titleStyle = {}, arrowStyle = {} }: TooltipProps<P, T>) {
     const [isVisible, setIsVisible] = useState(false);
     const [coords, setCoords] = useState({ top: 0, left: 0 });
+    const [activePosition, setActivePosition] = useState<Placement>(position);
 
-    // Changed to HTMLElement to accommodate any tag (button, div, a, etc.)
     const triggerRef = useRef<HTMLElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
+    const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const showTooltip = () => setIsVisible(true);
-    const hideTooltip = () => setIsVisible(false);
+    const showTooltip = () => {
+        if (hideTimerRef.current) {
+            clearTimeout(hideTimerRef.current);
+            hideTimerRef.current = null;
+        }
+        setIsVisible(true);
+    };
+
+    // MUI uses a short delay (200ms) before hiding to allow mouse to travel to tooltip
+    const hideTooltip = (delay = 200) => {
+        hideTimerRef.current = setTimeout(() => {
+            setIsVisible(false);
+        }, delay);
+    };
+
+    const hideTooltipImmediate = () => {
+        if (hideTimerRef.current) {
+            clearTimeout(hideTimerRef.current);
+            hideTimerRef.current = null;
+        }
+        setIsVisible(false);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+        };
+    }, []);
 
     useEffect(() => {
         if (isVisible) {
-            window.addEventListener('scroll', hideTooltip, true);
-            return () => window.removeEventListener('scroll', hideTooltip, true);
+            const handler = (e: Event) => {
+                // Don't hide if the scroll happened inside the tooltip itself
+                if (tooltipRef.current && tooltipRef.current.contains(e.target as Node)) return;
+                hideTooltipImmediate();
+            };
+            window.addEventListener('scroll', handler, true);
+            return () => window.removeEventListener('scroll', handler, true);
         }
     }, [isVisible]);
 
@@ -36,23 +72,23 @@ export default function Tooltip<P extends object, T extends string | JSXElementC
             const margin = 8;
             const padding = 10;
 
-            let activePosition = position;
+            let resolvedPosition = position;
             let top = 0;
             let left = 0;
 
             // 1. Collision Detection
             if (position === 'top' && triggerRect.top - tooltipRect.height - margin < 0) {
-                activePosition = 'bottom';
+                resolvedPosition = 'bottom';
             } else if (position === 'bottom' && triggerRect.bottom + tooltipRect.height + margin > window.innerHeight) {
-                activePosition = 'top';
+                resolvedPosition = 'top';
             } else if (position === 'left' && triggerRect.left - tooltipRect.width - margin < 0) {
-                activePosition = 'right';
+                resolvedPosition = 'right';
             } else if (position === 'right' && triggerRect.right + tooltipRect.width + margin > window.innerWidth) {
-                activePosition = 'left';
+                resolvedPosition = 'left';
             }
 
             // 2. Coordinate Calculation
-            switch (activePosition) {
+            switch (resolvedPosition) {
                 case 'top':
                     top = triggerRect.top - tooltipRect.height - margin;
                     left = triggerRect.left + (triggerRect.width / 2) - (tooltipRect.width / 2);
@@ -79,6 +115,7 @@ export default function Tooltip<P extends object, T extends string | JSXElementC
             else if (top + tooltipRect.height > window.innerHeight - padding) top = window.innerHeight - tooltipRect.height - padding;
 
             // 4. Set Coordinates
+            setActivePosition(resolvedPosition);
             setCoords({
                 top: top + window.scrollY,
                 left: left + window.scrollX,
@@ -96,7 +133,6 @@ export default function Tooltip<P extends object, T extends string | JSXElementC
         ref: triggerRef,
         onMouseEnter: (e: React.MouseEvent) => {
             showTooltip();
-            // Preserve any existing onMouseEnter passed directly to the child
             if ("onMouseEnter" in children.props && typeof children.props.onMouseEnter === "function") children.props.onMouseEnter(e);
         },
         onMouseLeave: (e: React.MouseEvent) => {
@@ -108,7 +144,7 @@ export default function Tooltip<P extends object, T extends string | JSXElementC
             if ("onFocus" in children.props && typeof children.props.onFocus === "function") children.props.onFocus(e);
         },
         onBlur: (e: React.FocusEvent) => {
-            hideTooltip();
+            hideTooltipImmediate();
             if ("onBlur" in children.props && typeof children.props.onBlur === "function") children.props.onBlur(e);
         },
     });
@@ -120,23 +156,17 @@ export default function Tooltip<P extends object, T extends string | JSXElementC
                 createPortal(
                     <div
                         ref={tooltipRef}
+                        className={`${cssStyles.tooltip}`}
                         style={{
                             position: 'absolute',
                             top: `${coords.top}px`,
                             left: `${coords.left}px`,
-                            backgroundColor: 'rgba(97, 97, 97, 0.92)',
-                            color: 'white',
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            fontSize: '12px',
-                            fontFamily: 'inherit',
-                            pointerEvents: 'none',
-                            whiteSpace: 'nowrap',
-                            zIndex: 9999,
-                            boxShadow: '0px 2px 4px rgba(0,0,0,0.2)',
                         }}
+                        onMouseEnter={showTooltip}
+                        onMouseLeave={() => hideTooltip()}
                     >
-                        {title}
+                        {arrow && <span className={`${cssStyles.arrow} ${cssStyles[`arrow__${activePosition}`]}`} style={{ ...arrowStyle }} />}
+                        <div className={cssStyles.tooltipContent} style={{ ...titleStyle, }} >{title}</div>
                     </div>,
                     document.body
                 )}

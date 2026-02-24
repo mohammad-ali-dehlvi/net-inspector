@@ -1,1 +1,66 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;700;800&display=swap');
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    /* Surface Colors */
+    --bg-dark-primary: #0b0d11;
+    /* Used in main/home/all_videos roots */
+    --bg-dark-secondary: #0d0f14;
+    /* Used in topBar/cards/panels */
+    --bg-dark-tertiary: #0a0c10;
+    /* Used in filter_toolbar */
+    --border-primary: #141820;
+    --border-secondary: #1e2433;
+    --border-divider: #0f1218;
+
+    /* Accent Colors */
+    --theme-success: #4ade80;
+    /* Primary green */
+    --theme-info: #60a5fa;
+    /* Primary blue */
+    --theme-warning: #fb923c;
+    /* Primary orange */
+    --theme-error: #f87171;
+    /* Primary red */
+
+    /* Text Colors */
+    --text-main: #e2e8f0;
+    --text-muted: #a0aec0;
+    --text-dim: #718096;
+    --text-dark: #4a5568;
+    --text-darker: #2d3748;
+    --text-deep: #3d4451;
+
+    /* Typography */
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-display: 'Syne', sans-serif;
+}
+
+body {
+    background: var(--bg-dark-primary);
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-main);
+    min-height: 100vh;
+}
+
+*::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+    background: color-mix(in srgb, var(--bg-dark-primary) 30%, rgba(0, 0, 0, 0.1));
+    border-radius: 20px;
+}
+
+*::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--bg-dark-primary) 60%, rgba(255, 255, 255, 0.1));
+    border-radius: 100px;
+}

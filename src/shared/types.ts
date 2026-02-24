@@ -28,6 +28,11 @@ export type NetworkItemType = {
     response: {
         status: number,
         headers: Record<string, string>,
-        body?: string
+        body?: {
+            url: string,
+            contentType?: string
+        } | {
+            error: string,
+        }
     }
 }

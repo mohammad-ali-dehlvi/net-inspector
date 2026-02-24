@@ -1,9 +1,10 @@
+import { ResultType } from "src/server/utils/CustomPlaywright"
 import { NetworkItemType } from "src/shared/types"
 
 export type VideoListResponse = {
     success: true
     data: {
-        names: {name: string}[]
+        names: { name: string }[]
     }
 } | {
     success: false
@@ -14,12 +15,7 @@ export type VideoNameUrlParams = {
     folder_name: string
 }
 
-export type VideoNameData = {
-    video?: {
-        url: string
-    },
-    network: {pageUrl: string; requests: NetworkItemType[]}
-}
+export type VideoNameData = ResultType
 
 export type VideoNameResponse = {
     success: true

@@ -1,0 +1,26 @@
+.container {
+    position: relative;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 2px;
+    width: 100%;
+    margin-top: 6px;
+    overflow: hidden;
+}
+
+.fullBar {
+    position: absolute;
+    top: 0;
+    height: 4px;
+    opacity: 0.25;
+    border-radius: 2px;
+    min-width: 6px;
+}
+
+.activeBar {
+    position: absolute;
+    top: 0;
+    height: 4px;
+    border-radius: 2px;
+    transition: box-shadow 0.2s;
+}

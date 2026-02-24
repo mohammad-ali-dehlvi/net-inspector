@@ -1,0 +1,75 @@
+:root {
+    --tooltip-background: white;
+    --tooltip-color: black;
+}
+
+.tooltip {
+    background-color: var(--tooltip-background);
+    color: var(--tooltip-color);
+    border-radius: 4px;
+    font-size: 10px;
+    line-height: 1.4;
+    font-family: inherit;
+    width: fit-content;
+    max-width: 300px;
+    z-index: 9999;
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.2);
+    pointer-events: auto;
+    /* Required for arrow positioning — must NOT clip overflow */
+    position: relative;
+    overflow: visible;
+}
+
+.tooltipContent {
+    padding: 4px 8px;
+    max-height: calc(100vh - 20px);
+    overflow-y: auto;
+    white-space: normal;
+    word-wrap: break-word;
+    border-radius: 4px;
+}
+
+/* Arrow base */
+.arrow {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border: 6px solid transparent;
+    pointer-events: none;
+}
+
+/* Arrow pointing up — tooltip is below the trigger */
+.arrow__bottom {
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-bottom-color: var(--tooltip-background);
+    border-top: none;
+}
+
+/* Arrow pointing down — tooltip is above the trigger */
+.arrow__top {
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-top-color: var(--tooltip-background);
+    border-bottom: none;
+}
+
+/* Arrow pointing right — tooltip is to the left of the trigger */
+.arrow__left {
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border-left-color: var(--tooltip-background);
+    border-right: none;
+}
+
+/* Arrow pointing left — tooltip is to the right of the trigger */
+.arrow__right {
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border-right-color: var(--tooltip-background);
+    border-left: none;
+}

@@ -1,17 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import useApiHook from "src/client/hooks/useApiHook";
 import { browserService } from "src/client/services";
-import { BrowserStatus } from "src/server/utils/CustomPlaywright";
-import "src/client/pages/home/index.css";
+import { BrowserStatus, ResponseProgress } from "src/server/utils/CustomPlaywright";
+import cssStyles from "src/client/pages/home/style.module.css";
+import { BrowserSocketStatusType } from "src/server/routers/browser/types";
+import Header from "src/client/components/Header";
 
 // ─── Status config ────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
-    loading: { dot: "#4a5568", label: "INITIALISING", glow: "none" },
-    started: { dot: "#4ade80", label: "RUNNING", glow: "0 0 8px #4ade80" },
-    stopped: { dot: "#f87171", label: "STOPPED", glow: "0 0 8px #f87171" },
-    starting: { dot: "#fb923c", label: "STARTING", glow: "0 0 8px #fb923c" },
-    stopping: { dot: "#fb923c", label: "STOPPING", glow: "0 0 8px #fb923c" },
+    loading: { dot: "var(--text-dark)", label: "INITIALISING", glow: "none" },
+    started: { dot: "var(--theme-success)", label: "RUNNING", glow: "0 0 8px var(--theme-success)" },
+    stopped: { dot: "var(--theme-error)", label: "STOPPED", glow: "0 0 8px var(--theme-error)" },
+    starting: { dot: "var(--theme-warning)", label: "STARTING", glow: "0 0 8px var(--theme-warning)" },
+    stopping: { dot: "var(--theme-warning)", label: "STOPPING", glow: "0 0 8px var(--theme-warning)" },
 } as const;
 
 function getStatusConfig(status: BrowserStatus | "loading") {
@@ -20,29 +22,39 @@ function getStatusConfig(status: BrowserStatus | "loading") {
 
 export default function Home() {
     const [browserStatus, setBrowserStatus] = useState<BrowserStatus | "loading">("loading");
+    const [responseProgress, setResponseProgress] = useState<ResponseProgress>({ total: 0, completed: 0, pending: 0 })
     const [urlValue, setUrlValue] = useState("")
     const { hitApi: startHitApi } = useApiHook({ callback: browserService.start });
-    const { hitApi: stopHitApi } = useApiHook({ callback: browserService.stop });
+    const { data: stoppedData, hitApi: stopHitApi, reset: resetStopHitApi } = useApiHook({ callback: browserService.stop });
 
     const handleStartBrowser = async () => {
         if (urlValue) {
-            try{
+            try {
                 const url = new URL(urlValue)
-                console.log(url)
-                await startHitApi({url: url.href})
-            }catch(err){
+
+                await startHitApi({ url: url.href })
+            } catch (err) {
                 alert((err as Error).message)
             }
-        }else{
+        } else {
             await startHitApi()
         }
     }
 
     useEffect(() => {
-        const closeSocket = browserService.status((status) => {
-            setBrowserStatus(status);
-        });
-        return () => { closeSocket(); };
+        browserService.connectSSE();
+        const handler = (data: BrowserSocketStatusType) => {
+            if (data.type === "status") {
+                setBrowserStatus(data.data)
+            } else if (data.type === "pending_promise") {
+                setResponseProgress(data.data)
+            }
+        }
+        browserService.subscribe(handler)
+        return () => {
+            browserService.unsubscribe(handler)
+            browserService.disconnectSSE()
+        };
     }, []);
 
     const cfg = getStatusConfig(browserStatus);
@@ -53,44 +65,40 @@ export default function Home() {
     return (
         <>
 
-            <div className="home-root">
+            <div className={cssStyles.homeRoot}>
                 {/* ── Top Bar ── */}
-                <div className="topbar">
-                    <div className="topbar-logo">
-                        <div className="topbar-dot" />
-                        <span className="topbar-title">NET INSPECTOR</span>
-                    </div>
-                    <div className="topbar-divider" />
-                    <span className="topbar-label">BROWSER CONTROL</span>
-
-                    {/* Live status pill in topbar */}
-                    {!isLoading && (
-                        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px" }}>
-                            <div
-                                // className={`status-dot ${isTransitioning ? "spinning" : "pulsing"}`}
-                                className={`status-dot pulsing`}
-                                style={{ background: cfg.dot, boxShadow: cfg.glow, position: "relative" }}
-                            />
-                            <span style={{ fontSize: "9px", color: cfg.dot, letterSpacing: "0.08em", fontFamily: "'JetBrains Mono',monospace" }}>
-                                {cfg.label}
-                            </span>
-                        </div>
+                <Header
+                    leftComponent={(
+                        <span className={cssStyles.topbarLabel}>BROWSER CONTROL</span>
                     )}
-                </div>
+                    rightComponent={(
+                        <>
+                            {!isLoading && (
+                                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: "6px" }}>
+                                    <div
+                                        className={`${cssStyles.statusDot} ${cssStyles.pulsing}`}
+                                        style={{ background: cfg.dot, boxShadow: cfg.glow, position: "relative" }}
+                                    />
+                                    <span style={{ fontSize: "9px", color: cfg.dot, letterSpacing: "0.08em", fontFamily: "'JetBrains Mono',monospace" }}>
+                                        {cfg.label}
+                                    </span>
+                                </div>
+                            )}
+                        </>
+                    )}
+                />
 
                 {/* ── Main ── */}
-                <div className="main">
-                    <div className="card">
-
-                        {/* Card header */}
-                        <div className="card-header">
+                <div className={cssStyles.main}>
+                    <div className={cssStyles.card}>
+                        <div className={cssStyles.cardHeader}>
                             <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                                <span className="card-header-label">SYSTEM / BROWSER</span>
-                                <span className="card-header-title">Browser Control</span>
+                                <span className={cssStyles.cardHeaderLabel}>SYSTEM / BROWSER</span>
+                                <span className={cssStyles.cardHeaderTitle}>Browser Control</span>
                             </div>
                             <div style={{ marginLeft: "auto" }}>
                                 <span
-                                    className="status-badge"
+                                    className={cssStyles.statusBadge}
                                     style={{
                                         background: `${cfg.dot}18`,
                                         border: `1px solid ${cfg.dot}40`,
@@ -102,112 +110,95 @@ export default function Home() {
                             </div>
                         </div>
 
-                        {/* Card body */}
-                        <div className="card-body">
-
-                            {/* Status section */}
-                            <div className="status-block">
-                                <div className="status-row">
-                                    <div className="status-left">
-                                        <div className="status-dot-wrap">
+                        <div className={cssStyles.cardBody}>
+                            <div className={cssStyles.statusBlock}>
+                                <div className={cssStyles.statusRow}>
+                                    <div className={cssStyles.statusLeft}>
+                                        <div className={cssStyles.statusDotWrap}>
                                             <div
-                                                // className={`status-dot ${isTransitioning ? "spinning" : isLoading ? "" : "pulsing"}`}
-                                                className={`status-dot ${isLoading ? "" : "pulsing"}`}
+                                                className={`${cssStyles.statusDot} ${!isLoading ? cssStyles.pulsing : ""}`}
                                                 style={{ background: cfg.dot, boxShadow: cfg.glow }}
                                             />
                                         </div>
-                                        <span className="status-label">
+                                        <span className={cssStyles.statusLabel}>
                                             {isLoading ? "Connecting to daemon…" : `Browser is ${cfg.label.toLowerCase()}`}
                                         </span>
                                     </div>
                                 </div>
 
-                                {/* Status progress bar */}
-                                <div className="status-bar-track">
+                                <div className={cssStyles.statusBarTrack}>
                                     <div
-                                        className="status-bar-fill"
+                                        className={cssStyles.statusBarFill}
                                         style={{
-                                            //   width: isLoading ? "30%" : isStarted ? "100%" : isTransitioning ? "60%" : "0%",
                                             width: isLoading ? "30%" : isStarted ? "100%" : "0%",
                                             background: isLoading
                                                 ? "#1e2433"
                                                 : isStarted
-                                                    ? `linear-gradient(to right, #4ade80, #60a5fa)`
-                                                    // : isTransitioning
-                                                    // ? "#fb923c"
-                                                    : "#f87171",
+                                                    ? `linear-gradient(to right, var(--theme-success), var(--theme-info))`
+                                                    : "var(--theme-error)",
                                         }}
                                     />
                                 </div>
                             </div>
 
-                            {/* Input button */}
                             <div>
-                                <input 
-                                className="nav-link" 
-                                style={{outline: "none", width: "100%"}} 
-                                placeholder="Enter page URL (Optional)" 
-                                type="url"
-                                value={urlValue}
-                                onChange={(e)=>{setUrlValue(e.target.value)}}
+                                <input
+                                    className={cssStyles.navLink}
+                                    style={{ outline: "none", width: "100%" }}
+                                    placeholder="Enter page URL (Optional)"
+                                    type="url"
+                                    value={urlValue}
+                                    onChange={(e) => { setUrlValue(e.target.value) }}
                                 />
                             </div>
 
-                            {/* Action button */}
                             {isLoading ? (
-                                <button className="action-btn loading-state" disabled>
-                                    <span className="btn-icon" style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>◌</span>
+                                <button className={`${cssStyles.actionBtn} ${cssStyles.loadingState}`} disabled>
+                                    <span className={cssStyles.btnIcon} style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>◌</span>
                                     LOADING…
                                 </button>
                             ) : isStarted ? (
                                 <button
-                                    className="action-btn stop"
-                                    onClick={() => stopHitApi()}
-                                    //   disabled={isTransitioning}
-                                    disabled={isLoading}
+                                    className={`${cssStyles.actionBtn} ${cssStyles.stop}`}
+                                    onClick={() => { resetStopHitApi(); stopHitApi() }}
+                                    disabled={isLoading || stoppedData?.success === true}
                                 >
-                                    <span className="btn-icon">■</span>
-                                    STOP BROWSER
+                                    <span className={cssStyles.btnIcon}>■</span>
+                                    STOP BROWSER {responseProgress.pending > 0 ? `(${responseProgress.pending}/${responseProgress.total} pending)` : ""}
                                 </button>
                             ) : (
                                 <button
-                                    className="action-btn start"
+                                    className={`${cssStyles.actionBtn} ${cssStyles.start}`}
                                     onClick={handleStartBrowser}
-                                    //   disabled={isTransitioning}
                                     disabled={isLoading}
                                 >
-                                    <span className="btn-icon">▶</span>
+                                    <span className={cssStyles.btnIcon}>▶</span>
                                     START BROWSER
                                 </button>
                             )}
 
-                            {/* Divider */}
-                            <div className="divider" />
+                            <div className={cssStyles.divider} />
 
-                            {/* Navigation */}
-                            <div className="nav-section">
-                                <div className="nav-section-label">NAVIGATION</div>
-                                <Link to="/videos" className="nav-link">
-                                    <div className="nav-link-dot" style={{ background: "#60a5fa" }} />
+                            <div className={cssStyles.navSection}>
+                                <div className={cssStyles.navSectionLabel}>NAVIGATION</div>
+                                <Link to="/videos" className={cssStyles.navLink}>
+                                    <div className={cssStyles.navLinkDot} style={{ background: "var(--theme-info)" }} />
                                     Videos
-                                    <span className="nav-link-arrow">→</span>
+                                    <span className={cssStyles.navLinkArrow}>→</span>
                                 </Link>
                             </div>
-
                         </div>
 
-                        {/* Card footer */}
-                        <div className="card-footer">
-                            <span className="footer-key">S</span>
-                            <span className="footer-hint">start</span>
+                        <div className={cssStyles.cardFooter}>
+                            <span className={cssStyles.footerKey}>S</span>
+                            <span className={cssStyles.footerHint}>start</span>
                             <span style={{ margin: "0 4px", color: "#1e2433", fontSize: "8px" }}>·</span>
-                            <span className="footer-key">X</span>
-                            <span className="footer-hint">stop</span>
+                            <span className={cssStyles.footerKey}>X</span>
+                            <span className={cssStyles.footerHint}>stop</span>
                             <div style={{ marginLeft: "auto", fontSize: "8px", color: "#1e2433", letterSpacing: "0.06em" }}>
                                 v1.0.0
                             </div>
                         </div>
-
                     </div>
                 </div>
             </div>

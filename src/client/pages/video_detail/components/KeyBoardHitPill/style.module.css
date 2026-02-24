@@ -1,0 +1,21 @@
+.container {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.key {
+    background: #141820;
+    border: 1px solid #1e2433;
+    border-radius: 3px;
+    padding: 1px 5px;
+    color: var(--text-dark);
+    font-size: 9px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.label {
+    color: var(--text-darker);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+}

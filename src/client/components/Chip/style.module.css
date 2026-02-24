@@ -1,0 +1,60 @@
+.chipBase {
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    font-family: 'JetBrains Mono', monospace;
+    transition: all 0.12s;
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid #1a2030;
+    color: var(--text-deep);
+    position: relative;
+}
+
+.chipBase.chipRemoveBorder {
+    border: 0px solid transparent !important;
+}
+
+.chipBase.chipRemoveBackground::before {
+    background: transparent !important;
+}
+
+.chipSuccess {
+    color: var(--theme-success);
+    border-color: var(--theme-success);
+}
+
+.chipWarning {
+    color: var(--theme-warning);
+    border-color: var(--theme-warning);
+}
+
+.chipInfo {
+    color: var(--theme-info);
+    border-color: var(--theme-info);
+}
+
+.chipError {
+    color: var(--theme-error);
+    border-color: var(--theme-error);
+}
+
+.chipActive {
+    color: var(--text-muted);
+    border-color: #1e2433;
+}
+
+.chipSuccess::before,
+.chipWarning::before,
+.chipInfo::before,
+.chipError::before,
+.chipActive::before {
+    content: "";
+    position: absolute;
+    inset: 0px;
+    background: currentColor;
+    opacity: 0.12;
+}

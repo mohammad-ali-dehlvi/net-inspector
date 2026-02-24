@@ -1,0 +1,129 @@
+.container {
+    padding: 0 14px 14px;
+    flex-shrink: 0;
+}
+
+.headerRow {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    gap: 8px;
+}
+
+.title {
+    font-size: 9px;
+    color: var(--text-deep);
+    letter-spacing: 0.08em;
+}
+
+.badgeContainer {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+}
+
+.badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    border: 1px solid;
+}
+
+.startBadge {
+    background: rgba(96, 165, 250, 0.12);
+    border-color: rgba(96, 165, 250, 0.25);
+    color: var(--theme-info);
+}
+
+.endBadge {
+    background: rgba(251, 146, 60, 0.12);
+    border-color: rgba(251, 146, 60, 0.25);
+    color: var(--theme-warning);
+}
+
+.arrow {
+    color: var(--text-darker);
+    font-size: 9px;
+}
+
+.resetButton {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid #1e2433;
+    border-radius: 3px;
+    color: var(--text-dark);
+    cursor: pointer;
+    font-size: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 2px 7px;
+    transition: all .15s;
+}
+
+.trackWrapper {
+    position: relative;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    cursor: default;
+    user-select: none;
+}
+
+.trackBg {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: #141820;
+    border-radius: 2px;
+}
+
+.dimmedZone {
+    position: absolute;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.activeZone {
+    position: absolute;
+    height: 4px;
+    border-radius: 1px;
+    transition: box-shadow .2s;
+}
+
+.networkTick {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2px;
+    height: 8px;
+    border-radius: 1px;
+    pointer-events: none;
+}
+
+.handle {
+    position: absolute;
+    transform: translateX(-50%);
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid #0b0d11;
+    cursor: ew-resize;
+    z-index: 3;
+    transition: background .2s, box-shadow .2s;
+}
+
+.axisWrapper {
+    position: relative;
+    margin-top: 4px;
+    height: 12px;
+}
+
+.axisTick {
+    position: absolute;
+    transform: translateX(-50%);
+    font-size: 8px;
+    color: var(--text-darker);
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
+}

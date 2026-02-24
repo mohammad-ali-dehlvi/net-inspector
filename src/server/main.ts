@@ -1,8 +1,7 @@
 import express from "express";
 import expressWs from "express-ws";
 import * as path from "node:path";
-import { CustomPlaywrightPage } from "./utils/CustomPlaywright";
-import { NetworkItemType } from "src/shared/types";
+import * as routers from "src/server/routers";
 
 const PORT = 8000
 const app = express()
@@ -19,12 +18,9 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/data", express.static(path.join(process.cwd(), "data")));
 
-const routers = await import("src/server/routers")
-
-app.use("/socket/browser", routers.browserSocketRouter(ins))
-
 app.use("/browser", routers.BrowserRouter)
 app.use("/video", routers.VideoRouter)
+app.use("/tools", routers.ToolsRouter)
 
 app.listen(PORT, () => {
     console.log(`Server is running as ${BASE_URL}/`)

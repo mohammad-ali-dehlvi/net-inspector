@@ -1,0 +1,25 @@
+.topBar {
+    border-bottom: 1px solid #141820;
+    padding: 0 18px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    background: #0d0f14;
+    flex-shrink: 0;
+}
+
+.footerBackLink {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    color: var(--text-deep);
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    transition: color 0.15s;
+}
+
+.footerBackLink:hover {
+    color: var(--text-dim);
+}

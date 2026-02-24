@@ -1,22 +1,11 @@
 import axios from "axios";
-import { BrowserStartRequest, BrowserStopResponse, BrowserStartResponse, BrowserApiRequest, BrowserApiResponse } from "src/server/routers/browser/types"
+import { BrowserStartRequest, BrowserStopResponse, BrowserStartResponse, BrowserApiRequest, BrowserApiResponse, BrowserSocketStatusType } from "src/server/routers/browser/types"
 import { BrowserStatus } from "src/server/utils/CustomPlaywright";
+import { SSE } from "src/client/services/utils/server_sent_events";
 
-class BrowserService {
-    status(callback: (status: BrowserStatus) => void) {
-        const ws = new WebSocket(`/ws/socket/browser/status`)
-
-        ws.onmessage = (e) => {
-            callback(e.data as BrowserStatus)
-        }
-
-        ws.onclose = () => {
-            console.log("browser status websocket closed")
-        }
-
-        return () => {
-            ws.close()
-        }
+class BrowserService extends SSE<BrowserSocketStatusType> {
+    connectSSE(): void {
+        super.connectSSE(`/api/browser/events`)
     }
 
     async start(obj: BrowserStartRequest = {}) {
@@ -31,7 +20,6 @@ class BrowserService {
     }
 
     async apiRequest(data: BrowserApiRequest) {
-        console.log("api request: ", data)
         // delete data['html']
         const res = await axios.post<BrowserApiResponse>("/api/browser/api-request", data)
 
