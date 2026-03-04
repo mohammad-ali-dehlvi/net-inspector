@@ -8,23 +8,24 @@ browserSSE.initialize(router)
 
 router.get<{}, BrowserStatusResponse>("/status", (req, res) => {
     res.status(200).json({
-        status: CustomPlaywrightPage.getInstange().getStatus()
+        status: CustomPlaywrightPage.getInstance().getStatus()
     })
 })
 
 router.post<BrowserStartRequest, BrowserStartResponse, {}, BrowserStartRequest>("/start", async (req, res) => {
     try {
         const url = req.query.url || null
-        await CustomPlaywrightPage.getInstange().goto(url || "http://google.com")
+        await CustomPlaywrightPage.getInstance().goto(url || "http://google.com")
         return res.status(200).json({ success: true })
     } catch (err) {
+        console.log("ERROR IN START: ", err)
         return res.status(500).json({ success: false })
     }
 })
 
 router.post<{}, BrowserStopResponse>("/stop", async (req, res) => {
     try {
-        CustomPlaywrightPage.getInstange().close().catch((err) => {
+        CustomPlaywrightPage.getInstance().close().catch((err) => {
             browserSSE.sendEvent({ type: "stop_error", data: err instanceof Error ? err.message : "Unknown error while closing the browser" })
         })
         return res.status(200).json({ success: true })
@@ -36,7 +37,7 @@ router.post<{}, BrowserStopResponse>("/stop", async (req, res) => {
 router.post<{}, BrowserApiResponse, BrowserApiRequest>("/api-request", async (req, res) => {
     try {
         // return res.status(200).json({success: true, data: req.body})
-        const data = await CustomPlaywrightPage.getInstange().request(req.body)
+        const data = await CustomPlaywrightPage.getInstance().request(req.body)
         // const contentType = data.contentType || "application/octet-stream"
         // res.setHeader("Content-Type", contentType)
 

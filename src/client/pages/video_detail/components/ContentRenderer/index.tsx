@@ -54,6 +54,7 @@ export default function ContentRenderer({ contentType: propContentType, data: pr
     }, [normalizedType, data])
 
     if (typeof data === "object" && !!data && "url" in data) {
+        // Handle JSON so that it can deletect if there is any stringified json within the json and make it collapsable
         const url = `${data.url}`
         const contentType = normalizedType
         const style: CSSProperties = { width: "100%", maxWidth: "400px", maxHeight: "200px", objectFit: "contain", color: "#94a3b8" }

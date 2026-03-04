@@ -8,13 +8,13 @@ export const browserSSE = new ServerSentEvent<BrowserSocketStatusType>()
 // browserSSE.initialize(router)
 
 browserSSE.onOpen(() => {
-    browserSSE.sendEvent({ type: "status", data: CustomPlaywrightPage.getInstange().getStatus() })
+    browserSSE.sendEvent({ type: "status", data: CustomPlaywrightPage.getInstance().getStatus() })
 })
 
-CustomPlaywrightPage.getInstange().onBrowserStatusChange(({ status }) => {
+CustomPlaywrightPage.getInstance().onBrowserStatusChange(({ status }) => {
     browserSSE.sendEvent({ type: "status", data: status })
 })
 
-CustomPlaywrightPage.getInstange().onResponseProgress((progress) => {
+CustomPlaywrightPage.getInstance().onResponseProgress((progress) => {
     browserSSE.sendEvent({ type: "pending_promise", data: progress })
 })

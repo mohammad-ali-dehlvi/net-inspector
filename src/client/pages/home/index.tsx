@@ -161,10 +161,10 @@ export default function Home() {
                                 <button
                                     className={`${cssStyles.actionBtn} ${cssStyles.stop}`}
                                     onClick={() => { resetStopHitApi(); stopHitApi() }}
-                                    disabled={isLoading || stoppedData?.success === true}
+                                    disabled={isLoading}
                                 >
                                     <span className={cssStyles.btnIcon}>■</span>
-                                    STOP BROWSER {responseProgress.pending > 0 ? `(${responseProgress.pending}/${responseProgress.total} pending)` : ""}
+                                    STOP BROWSER {responseProgress.total > 0 ? `(${responseProgress.completed}/${responseProgress.total} promises completed)` : ""}
                                 </button>
                             ) : (
                                 <button

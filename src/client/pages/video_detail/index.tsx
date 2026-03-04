@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Link, useParams } from "react-router"
 import Header from "src/client/components/Header";
 import cssHeaderStyles from "src/client/components/Header/style.module.css";
@@ -11,17 +11,26 @@ import useApiHook from "src/client/hooks/useApiHook";
 import { VideoDetailProvider } from "src/client/pages/video_detail/context/videoDetail"
 import VideoDetailPlayerContextProvider from "src/client/pages/video_detail/context/VideoDetailPlayerContext"
 import { videoService } from "src/client/services";
+import DownloadedFilesViewer from "./components/DownloadedFilesViewer";
 
 export default function VideoDetail() {
     const { name = "" } = useParams()
+    const downloadedFilesTabValue = useRef("downloaded_files")
     const [tabValue, setTabValue] = useState<string>("")
     const { data, error, loading, hitApi } = useApiHook({ callback: videoService.getNameDetails })
+
+    const downloadedFiles = useMemo(() => {
+        if (data?.success) {
+            return data.data.downloadFiles
+        }
+        return undefined
+    }, [data])
 
     const tabValues = useMemo(() => {
         if (!data || !data.success) return []
         return data.data.result.map((e, i) => {
             return `page_${i + 1}`
-        })
+        }).concat(downloadedFilesTabValue.current)
     }, [data])
 
     useEffect(() => {
@@ -57,7 +66,7 @@ export default function VideoDetail() {
             {data && data.success && (
                 // <NetworkVideoPlayer />
                 <div>
-                    {data.data.result.length > 1 && (
+                    {data.data.result.length > 1 || !!downloadedFiles && (
                         <Tabs value={tabValue} onChange={setTabValue} >
                             {data.data.result.map((item, index) => {
                                 return (
@@ -66,17 +75,23 @@ export default function VideoDetail() {
                                     </Tab>
                                 )
                             })}
+                            {!!downloadedFiles && <Tab value="downloaded_files" >Downloaded Files</Tab>}
                         </Tabs>
                     )}
                     {data.data.result.map((item, index) => {
                         return (
-                            <TabPanel key={item.file} value={`page_${index + 1}`} activeValue={tabValue} >
+                            <TabPanel key={`page_${index}`} value={`page_${index + 1}`} activeValue={tabValue} >
                                 <VideoDetailProvider item={item} >
                                     <VideoDetailPlayerContextProvider />
                                 </VideoDetailProvider>
                             </TabPanel>
                         )
                     })}
+                    {!!downloadedFiles &&
+                        <TabPanel value="downloaded_files" activeValue={tabValue} >
+                            <DownloadedFilesViewer data={downloadedFiles} />
+                        </TabPanel>
+                    }
                 </div>
             )}
         </div>

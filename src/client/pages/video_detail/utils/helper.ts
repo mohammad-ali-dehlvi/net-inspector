@@ -83,18 +83,6 @@ export const normalizeBinaryString = (input: string) => {
   return input.replace(/\\u0000/g, "\u0000")
 }
 
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      console.log("blob to base64 result: ", reader.result)
-      resolve(reader.result as string)
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob); // this already gives base64
-  });
-}
-
 export const buildDataUrl = (
   contentType: string,
   raw: string

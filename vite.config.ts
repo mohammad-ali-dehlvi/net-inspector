@@ -18,7 +18,16 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
         // This removes "/api" from the start of the URL
-        rewrite: (path) => path.replace(/^\/api/, '')
+        rewrite: (path) => path.replace(/^\/api/, ''),
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, req, res) => {
+            // This prevents the error from crashing the proxy process
+            // and keeps your terminal cleaner.
+            if ("code" in err && err.code === 'ECONNREFUSED') {
+              console.warn('⚠️ Backend unreachable, retrying via client backoff...');
+            }
+          });
+        },
       },
       '/ws': {
         target: 'ws://localhost:8000',

@@ -4,6 +4,10 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import { NetworkItemType } from "src/shared/types";
 import { BrowserApiRequest } from "src/server/routers/browser/types";
+import { initScript } from "src/server/utils/CustomPlaywright/utils/initScript"
+import { spawn } from "child_process"
+import { PassLinksType, PassMediaSourceFuncType } from "src/server/utils/CustomPlaywright/types";
+import { getExtension, muxStreams } from "src/server/utils/functions";
 
 export type BrowserStatus = "started" | "stopped"
 
@@ -11,6 +15,7 @@ type BrowserStatusChangeCallback = (obj: { status: BrowserStatus }) => void
 
 export type ResultType = {
     pageUrl: string;
+    downloadFiles?: { url: string }[];
     result: {
         file: string | null;
         result: {
@@ -28,6 +33,7 @@ export interface ResponseProgress {
 export class CustomPlaywrightPage {
     private browser: Browser | null = null
     private context: BrowserContext | null = null
+    private url: URL | null = null
     private pages: Page[] = []
     private time: { page: Page; start: number; stop: number }[] = []
     private result: ResultType | null = null
@@ -40,7 +46,8 @@ export class CustomPlaywrightPage {
 
     private onBrowserStatusChangeCallbacks: (BrowserStatusChangeCallback)[] = []
 
-    private data_folder_path = path.join(process.cwd(), "src", "server", "utils", "CustomPlaywright", "data")
+    private playwright_main_folder = path.join(process.cwd(), "src", "server", "utils", "CustomPlaywright")
+    private data_folder_path = path.join(this.playwright_main_folder, "data")
     private auth_file_path = path.join(this.data_folder_path, "auth.json")
 
     private video_folder_path = path.join(process.cwd(), "data", "video")
@@ -50,10 +57,11 @@ export class CustomPlaywrightPage {
     static network_file_name = "network.json"
     static videos_folder_path = "videos"
     static files_folder_path = "files"
+    static download_files_folder_path = "downloaded_files"
 
     private constructor() { }
 
-    static getInstange() {
+    static getInstance() {
         if (!CustomPlaywrightPage.instange) {
             CustomPlaywrightPage.instange = new CustomPlaywrightPage()
         }
@@ -100,6 +108,11 @@ export class CustomPlaywrightPage {
         return result
     }
 
+    onCustomEvent<T extends any[]>(name: string, callback: (...args: T) => void) {
+        if (!this.context) return
+        this.context.exposeFunction(name, callback)
+    }
+
     onBrowserStatusChange(callback: BrowserStatusChangeCallback) {
         const index = this.onBrowserStatusChangeCallbacks.push(callback)
         return () => {
@@ -141,7 +154,7 @@ export class CustomPlaywrightPage {
         const endSeconds =
             ((responseEnd < 0 ? Date.now() : responseEnd) - timeObj.start) / 1000
 
-        const handlePromises = async (videoPath: string) => {
+        const handlePromises = async () => {
             try {
                 const data = await response.body();
                 const contentType = response.headers()["content-type"] ?? "";
@@ -178,7 +191,7 @@ export class CustomPlaywrightPage {
             }
         }
 
-        const body = await handlePromises(videoPath)
+        // const body = await handlePromises()
 
         const resultObj = await this.getOrCreateResultObj(page)
 
@@ -197,16 +210,88 @@ export class CustomPlaywrightPage {
                 response: {
                     status: response.status(),
                     headers: response.headers(),
-                    body,
+                    // body,
                 },
             })
         }
     }
 
+    private async startBrowser(obj: { headless?: boolean } = {}) {
+        const videoPath = this.getVideoPath()
+        if (!videoPath) return {}
+        /**
+         * create a new folder in 'C:\\Users\\admin\\AppData\\Local\\Google\\Chrome' folder with name 'Playwright User Data'
+         * Copy all the data from 'User Data' to 'Playwright User data'
+         * Then run the below code
+         */
+        // const userPath = "C:\\Users\\admin\\AppData\\Local\\Google\\Chrome\\Playwright User Data"
+        // const context = await playwright.chromium.launchPersistentContext(userPath, {
+        //     headless: obj.headless ?? false,
+        //     channel: "chrome",
+        //     recordVideo: {
+        //         dir: path.join(videoPath, CustomPlaywrightPage.videos_folder_path)
+        //     }
+        // })
+        // const browser = context.browser()
 
-    private async start(obj: { videoFolder: string }) {
-        const { videoFolder } = obj
-        const videoPath = path.join(this.video_folder_path, videoFolder)
+        // const chromePath = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+        // const userDataDir = this.data_folder_path
+        // const PORT = 9222
+
+        // console.log("Launching Chrome...");
+
+        // const browserProcess = spawn(chromePath, [
+        //     `--remote-debugging-port=${PORT}`,
+        //     `--user-data-dir=${userDataDir}`,
+        //     `--no-first-run`,
+        //     `--no-default-browser-check`
+        // ], {
+        //     detached: true, // Allows the browser to stay open if the script crashes
+        //     stdio: 'ignore'
+        // });
+
+        // browserProcess.unref();
+
+        // await new Promise((resolve) => setTimeout(resolve, 5000))
+
+        // const browser = await playwright.chromium.connectOverCDP(`http://localhost:${PORT}`)
+        // const context = await browser.newContext({
+        //     recordVideo: {
+        //         dir: path.join(videoPath, CustomPlaywrightPage.videos_folder_path)
+        //     }
+        // })
+
+
+        const browser = await playwright.chromium.launch({
+            headless: obj.headless ?? false,
+            channel: "chrome"
+        })
+        const context = await browser.newContext({
+            recordVideo: {
+                dir: path.join(videoPath, CustomPlaywrightPage.videos_folder_path)
+            },
+            storageState: this.hasAuthFile() ? this.auth_file_path : undefined
+        })
+        return { browser, context }
+    }
+
+
+    private async start() {
+        // const { videoFolder } = obj
+        const videoFolder = this.getFolderName()
+        if (!videoFolder) return
+        // const videoPath = path.join(this.video_folder_path, videoFolder)
+        const videoPath = this.getVideoPath()
+        if (!videoPath) return
+
+        const obj = await this.startBrowser()
+        if (obj.browser) {
+            this.browser = obj.browser
+        }
+        if (obj.context) {
+            this.context = obj.context
+        }
+        if (!this.browser || !this.context) return
 
         try {
             fs.rmSync(videoPath, { recursive: true, force: true })
@@ -216,12 +301,119 @@ export class CustomPlaywrightPage {
         }
         fs.mkdirSync(videoPath, { recursive: true })
 
-        this.browser = await playwright.chromium.launch({ headless: false })
-        this.context = await this.browser.newContext({
-            recordVideo: {
-                dir: path.join(videoPath, CustomPlaywrightPage.videos_folder_path)
-            },
-            storageState: this.hasAuthFile() ? this.auth_file_path : undefined
+
+        // this.context = await playwright.chromium.launchPersistentContext("C:\\Users\\admin\\AppData\\Local\\Google\\Chrome\\'User Data'", {
+        //     channel: "chrome",
+        //     headless: false,
+        //     recordVideo: {
+        //         dir: path.join(videoPath, CustomPlaywrightPage.videos_folder_path)
+        //     }
+        // })
+        await this.context.addInitScript(initScript)
+
+        const saveToDownloadsFolder = (bytes: Uint8Array, obj: { fileName?: string; fileSuffix?: string } = {}) => {
+            const { fileName, fileSuffix } = obj
+            const randomName = `${Date.now()}_${Math.random().toString(16).slice(2)}`
+            const fixFileName = fileName ? fileName : fileSuffix ? `${randomName}.${fileSuffix}` : randomName
+
+            const filePath = path.join(videoPath, CustomPlaywrightPage.download_files_folder_path, fixFileName)
+            const dirPath = path.dirname(filePath)
+            if (!fs.existsSync(dirPath)) {
+                fs.mkdirSync(dirPath, { recursive: true })
+            }
+            fs.writeFileSync(filePath, bytes)
+        }
+
+        this.context.exposeFunction("passLinks", (async (data) => {
+            console.log("Starting to download files...")
+            for (let i = 0; i < data.length; i++) {
+                const obj = data[i]
+                console.log(`File ${i + 1} is started...`)
+                try {
+                    if (obj.type === "blob" || obj.type === "file" || !obj.type) {
+                        const res = await fetch(obj.link)
+
+                        // const arrayBuffer = await res.arrayBuffer()
+                        const bytes = await res.bytes()
+
+                        const contentType = res.headers.get('content-type') ?? ""
+
+                        const mimeType = contentType.split(";")[0].trim();
+                        // removes charset → "image/svg+xml"
+
+                        const subtype = mimeType.split("/")[1] ?? "txt";
+                        // gets "svg+xml"
+
+                        const fileSuffix = subtype.split("+")[0];
+                        // removes "+xml" → "svg"
+
+                        saveToDownloadsFolder(bytes, { fileSuffix })
+                        console.log(`File ${i + 1} downloaded...`)
+                    } else {
+                        console.log(`File ${i + 1}, type is not supported ${obj.type}, ${obj.link}`)
+                    }
+                } catch (err) {
+                    console.log(`File ${i + 1} ERROR: `, obj)
+                }
+            }
+        }) as PassLinksType)
+
+        this.context.exposeFunction("passMediaSource", (async (data) => {
+            for (const key in data) {
+                const obj = data[key]
+                console.log("MEDIA SOURCE URL: ", key, obj.readyState)
+
+                const audioChunks: Uint8Array<ArrayBuffer>[] = []
+                const videoChunks: Uint8Array<ArrayBuffer>[] = []
+
+                let audioMimeType: string | undefined
+                let videoMimeType: string | undefined
+                obj.data.forEach((e) => {
+                    if (e.mimeType.includes("video")) {
+                        videoMimeType = e.mimeType
+                        videoChunks.push(new Uint8Array(e.data))
+                    } else if (e.mimeType.includes("audio")) {
+                        audioMimeType = e.mimeType
+                        audioChunks.push(new Uint8Array(e.data))
+                    }
+                })
+
+                if (videoChunks.length > 0 && audioChunks.length > 0) {
+                    const audioSuffix = getExtension(audioMimeType!, "mp3")
+                    const videoSuffix = getExtension(videoMimeType!, "mp4")
+
+                    console.log("AUDIO SUFFIX: ", audioSuffix)
+                    console.log("VIDEO SUFFIX: ", videoSuffix)
+
+                    const audioBlob = new Blob(audioChunks, { type: `audio/${audioSuffix}` })
+                    const videoBlob = new Blob(videoChunks, { type: `video/${videoSuffix}` })
+
+                    const audioArrayBuffer = await audioBlob.arrayBuffer()
+                    const videoArrayBuffer = await videoBlob.arrayBuffer()
+
+                    const outputPath = path.join(videoPath, CustomPlaywrightPage.download_files_folder_path, `${Date.now()}_${Math.random().toString(16).slice(2)}.${videoSuffix}`)
+
+                    await muxStreams(Buffer.from(videoArrayBuffer), Buffer.from(audioArrayBuffer), outputPath)
+                }
+
+                else if (audioChunks.length > 0) {
+                    const suffix = getExtension(audioMimeType!, 'mp3')
+                    const audioBlob = new Blob(audioChunks, { type: `audio/${suffix}` })
+                    const audioArrayBuffer = await audioBlob.arrayBuffer()
+                    saveToDownloadsFolder(Buffer.from(audioArrayBuffer), { fileSuffix: suffix })
+                }
+
+                else if (videoChunks.length > 0) {
+                    const suffix = getExtension(videoMimeType!, "mp4")
+                    const videoBlob = new Blob(videoChunks, { type: `video/${suffix}` })
+                    const videoArrayBuffer = await videoBlob.arrayBuffer()
+                    saveToDownloadsFolder(Buffer.from(videoArrayBuffer), { fileSuffix: suffix })
+                }
+            }
+        }) as PassMediaSourceFuncType)
+
+        this.context.addListener("console", (consoleMessage) => {
+            console.log("CONSOLE LOG MESSAGE: ", consoleMessage.text())
         })
         this.context.addListener("page", async (page) => {
             this.pages.push(page)
@@ -267,7 +459,13 @@ export class CustomPlaywrightPage {
         await this.context?.newPage()
 
         this.emitOnBrowserStatusChangeCallbacks("started")
+        // this.context.addListener("close", async () => {
+        //     await Promise.allSettled([...this.pendingResponsePromises])
 
+        //     fs.writeFileSync(path.join(videoPath, CustomPlaywrightPage.network_file_name), JSON.stringify(this.result, undefined, 4), { encoding: 'utf-8' })
+
+        //     this.reset()
+        // })
         this.browser.addListener("disconnected", async () => {
             await Promise.allSettled([...this.pendingResponsePromises])
 
@@ -277,11 +475,24 @@ export class CustomPlaywrightPage {
         })
     }
 
+    public getFolderName() {
+        if (!this.url) return null
+
+        return this.url.hostname
+    }
+
+    public getVideoPath() {
+        const folderName = this.getFolderName()
+        if (!folderName) return null
+
+        return path.join(this.video_folder_path, folderName)
+    }
+
     async goto(url: string) {
         if (this.getStatus() === "started") return
-        const u = new URL(url)
+        this.url = new URL(url)
 
-        await this.start({ videoFolder: u.hostname })
+        await this.start()
         if (this.pages.length === 0) return
         const page = this.pages[0]
         await page.goto(url)

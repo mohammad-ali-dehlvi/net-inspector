@@ -20,7 +20,6 @@ app.use("/data", express.static(path.join(process.cwd(), "data")));
 
 app.use("/browser", routers.BrowserRouter)
 app.use("/video", routers.VideoRouter)
-app.use("/tools", routers.ToolsRouter)
 
 app.listen(PORT, () => {
     console.log(`Server is running as ${BASE_URL}/`)

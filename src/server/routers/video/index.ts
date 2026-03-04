@@ -28,16 +28,13 @@ router.get<{}, VideoListResponse>("/list", (req, res) => {
 router.get<VideoNameUrlParams, VideoNameResponse>("/details/:folder_name", (req, res) => {
     try {
         const folderName = req.params.folder_name
+        const staticBaseURL = `/data/video/${folderName}`
         // const host = req.get("host")
         const p = path.join(process.cwd(), "data", "video", folderName)
         const isExist = fs.existsSync(p)
         const list = isExist ? fs.readdirSync(p) : []
 
-        const videosPath = path.join(p, CustomPlaywrightPage.videos_folder_path)
-        const videoNamesExist = fs.existsSync(videosPath)
-        const videoNames = videoNamesExist ? fs.readdirSync(videosPath) : []
-
-        const videos = videoNames
+        // Network.json file
         const networkFile = list.find(name => name === CustomPlaywrightPage.network_file_name)
         const networkStr = networkFile ? fs.readFileSync(path.join(p, networkFile), { encoding: "utf-8" }) : JSON.stringify([])
         const networkObj: ResultType = JSON.parse(networkStr)
@@ -45,7 +42,7 @@ router.get<VideoNameUrlParams, VideoNameResponse>("/details/:folder_name", (req,
         networkObj.result = networkObj.result.map((e) => {
             return {
                 ...e,
-                file: `/data/video/${folderName}/${CustomPlaywrightPage.videos_folder_path}/${e.file}`,
+                file: `${staticBaseURL}/${CustomPlaywrightPage.videos_folder_path}/${e.file}`,
                 result: {
                     ...e.result,
                     network: e.result.network.toSorted((a, b) => {
@@ -54,6 +51,17 @@ router.get<VideoNameUrlParams, VideoNameResponse>("/details/:folder_name", (req,
                 }
             }
         })
+
+
+        const downloadedFilesPath = path.join(p, CustomPlaywrightPage.download_files_folder_path)
+        if (fs.existsSync(downloadedFilesPath)) {
+            const downloadedFilesName = fs.readdirSync(downloadedFilesPath)
+            networkObj.downloadFiles = downloadedFilesName.map((name) => {
+                return {
+                    url: `${staticBaseURL}/${CustomPlaywrightPage.download_files_folder_path}/${name}`
+                }
+            })
+        }
 
         const obj = networkObj
 
