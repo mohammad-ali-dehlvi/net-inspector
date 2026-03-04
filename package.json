@@ -13,8 +13,10 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start:client": "vite",
     "start:server": "tsx watch src/server/main.ts",
-    "start": "concurrently \"npm run start:server\" \"npm run start:client\"",
-    "prepare": "husky install"
+    "start": "concurrently \"npm run watch:playwright-script\" \"npm run start:server\" \"npm run start:client\"",
+    "prepare": "husky install",
+    "playwright-script": "npx vite build --config vite.utils.config.ts",
+    "watch:playwright-script": "npx vite build --config vite.utils.config.ts --watch"
   },
   "dependencies": {
     "@types/fluent-ffmpeg": "^2.1.28",

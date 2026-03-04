@@ -21,7 +21,7 @@ export default function DownloadedFilesViewer(props: DownloadedFilesViewerProps)
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }} >
                 {data.map((e) => {
                     const type = getMediaType(e.url)
-                    const style: CSSProperties = { width: "100%", maxHeight: "calc(100vh - 20px)", objectFit: "contain" }
+                    const style: CSSProperties = { width: "100%", maxHeight: "calc(100vh - 85px)", objectFit: "contain" }
                     return <div key={e.url} >
                         {type === "audio" ? <audio src={e.url} controls style={style} /> :
                             type === "video" ? <video src={e.url} controls style={style} /> :

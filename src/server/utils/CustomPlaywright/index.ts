@@ -4,7 +4,6 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import { NetworkItemType } from "src/shared/types";
 import { BrowserApiRequest } from "src/server/routers/browser/types";
-import { initScript } from "src/server/utils/CustomPlaywright/utils/initScript"
 import { spawn } from "child_process"
 import { PassLinksType, PassMediaSourceFuncType } from "src/server/utils/CustomPlaywright/types";
 import { getExtension, muxStreams } from "src/server/utils/functions";
@@ -309,7 +308,9 @@ export class CustomPlaywrightPage {
         //         dir: path.join(videoPath, CustomPlaywrightPage.videos_folder_path)
         //     }
         // })
-        await this.context.addInitScript(initScript)
+        await this.context.addInitScript({
+            path: path.resolve(path.join(this.playwright_main_folder, "utils", "initScript", "dist-utils", "utils.bundle.js"))
+        })
 
         const saveToDownloadsFolder = (bytes: Uint8Array, obj: { fileName?: string; fileSuffix?: string } = {}) => {
             const { fileName, fileSuffix } = obj
