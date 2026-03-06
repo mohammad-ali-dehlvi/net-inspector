@@ -4,11 +4,10 @@ import path from "node:path"
 import { fileTypeFromBuffer } from "file-type"
 import fs from "fs"
 import { extension } from "mime-types"
+import { GetExtensionFunc } from "src/server/utils/CustomPlaywright/types"
 
 
-export function getExtension(mimeType: string, backupExtension: string): string
-export function getExtension(mimeType: string): string | false
-export function getExtension(mimeType: string, backupExtension?: string): string | false {
+export const getExtension = ((mimeType, backupExtension) => {
     // Remove codecs or extra parameters
     const cleanMime = mimeType.split(";")[0].trim()
     const result = extension(cleanMime)
@@ -16,7 +15,7 @@ export function getExtension(mimeType: string, backupExtension?: string): string
         return backupExtension
     }
     return result
-}
+}) as GetExtensionFunc
 
 async function getExtensionFromBuffer(buffer: Buffer) {
     const result = await fileTypeFromBuffer(buffer)

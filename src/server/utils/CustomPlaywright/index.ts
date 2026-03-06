@@ -5,7 +5,7 @@ import * as fs from "node:fs";
 import { NetworkItemType } from "src/shared/types";
 import { BrowserApiRequest } from "src/server/routers/browser/types";
 import { spawn } from "child_process"
-import { PassLinksType, PassMediaSourceFuncType } from "src/server/utils/CustomPlaywright/types";
+import { GetExtensionFunc, PassDataFunc } from "src/server/utils/CustomPlaywright/types";
 import { getExtension, muxStreams } from "src/server/utils/functions";
 
 export type BrowserStatus = "started" | "stopped"
@@ -325,93 +325,41 @@ export class CustomPlaywrightPage {
             fs.writeFileSync(filePath, bytes)
         }
 
-        this.context.exposeFunction("passLinks", (async (data) => {
-            console.log("Starting to download files...")
+        this.context.exposeFunction("getExtension", ((mimeType, backupExtension) => {
+            const result = getExtension(mimeType, backupExtension)
+            console.log("NODE EXTENSION: ", result)
+            return result
+        }) as GetExtensionFunc)
+
+        this.context.exposeFunction("passData", (async (data) => {
+            console.log("TOTAL Data: ", data)
             for (let i = 0; i < data.length; i++) {
                 const obj = data[i]
-                console.log(`File ${i + 1} is started...`)
                 try {
-                    if (obj.type === "blob" || obj.type === "file" || !obj.type) {
-                        const res = await fetch(obj.link)
 
-                        // const arrayBuffer = await res.arrayBuffer()
-                        const bytes = await res.bytes()
-
-                        const contentType = res.headers.get('content-type') ?? ""
-
-                        const mimeType = contentType.split(";")[0].trim();
-                        // removes charset → "image/svg+xml"
-
-                        const subtype = mimeType.split("/")[1] ?? "txt";
-                        // gets "svg+xml"
-
-                        const fileSuffix = subtype.split("+")[0];
-                        // removes "+xml" → "svg"
+                    if (obj.type === "normal") {
+                        const { bytes, fileSuffix } = obj
 
                         saveToDownloadsFolder(bytes, { fileSuffix })
-                        console.log(`File ${i + 1} downloaded...`)
                     } else {
-                        console.log(`File ${i + 1}, type is not supported ${obj.type}, ${obj.link}`)
+                        const { data: { video, audio } } = obj
+
+                        if (video && audio) {
+                            const { fileSuffix: videoSuffix, bytes: videoBytes } = video
+                            const { bytes: audioBytes } = audio
+                            const outputPath = path.join(videoPath, CustomPlaywrightPage.download_files_folder_path, `${Date.now()}_${Math.random().toString(16).slice(2)}.${videoSuffix}`)
+                            await muxStreams(Buffer.from(videoBytes), Buffer.from(audioBytes), outputPath)
+                        } else if (video || audio) {
+                            const data = (video || audio)!
+                            saveToDownloadsFolder(Buffer.from(data.bytes), { fileSuffix: data.fileSuffix })
+                        }
                     }
                 } catch (err) {
-                    console.log(`File ${i + 1} ERROR: `, obj)
+                    console.log("ERROR in: ", obj.type)
+                    console.log(err)
                 }
             }
-        }) as PassLinksType)
-
-        this.context.exposeFunction("passMediaSource", (async (data) => {
-            for (const key in data) {
-                const obj = data[key]
-                console.log("MEDIA SOURCE URL: ", key, obj.readyState)
-
-                const audioChunks: Uint8Array<ArrayBuffer>[] = []
-                const videoChunks: Uint8Array<ArrayBuffer>[] = []
-
-                let audioMimeType: string | undefined
-                let videoMimeType: string | undefined
-                obj.data.forEach((e) => {
-                    if (e.mimeType.includes("video")) {
-                        videoMimeType = e.mimeType
-                        videoChunks.push(new Uint8Array(e.data))
-                    } else if (e.mimeType.includes("audio")) {
-                        audioMimeType = e.mimeType
-                        audioChunks.push(new Uint8Array(e.data))
-                    }
-                })
-
-                if (videoChunks.length > 0 && audioChunks.length > 0) {
-                    const audioSuffix = getExtension(audioMimeType!, "mp3")
-                    const videoSuffix = getExtension(videoMimeType!, "mp4")
-
-                    console.log("AUDIO SUFFIX: ", audioSuffix)
-                    console.log("VIDEO SUFFIX: ", videoSuffix)
-
-                    const audioBlob = new Blob(audioChunks, { type: `audio/${audioSuffix}` })
-                    const videoBlob = new Blob(videoChunks, { type: `video/${videoSuffix}` })
-
-                    const audioArrayBuffer = await audioBlob.arrayBuffer()
-                    const videoArrayBuffer = await videoBlob.arrayBuffer()
-
-                    const outputPath = path.join(videoPath, CustomPlaywrightPage.download_files_folder_path, `${Date.now()}_${Math.random().toString(16).slice(2)}.${videoSuffix}`)
-
-                    await muxStreams(Buffer.from(videoArrayBuffer), Buffer.from(audioArrayBuffer), outputPath)
-                }
-
-                else if (audioChunks.length > 0) {
-                    const suffix = getExtension(audioMimeType!, 'mp3')
-                    const audioBlob = new Blob(audioChunks, { type: `audio/${suffix}` })
-                    const audioArrayBuffer = await audioBlob.arrayBuffer()
-                    saveToDownloadsFolder(Buffer.from(audioArrayBuffer), { fileSuffix: suffix })
-                }
-
-                else if (videoChunks.length > 0) {
-                    const suffix = getExtension(videoMimeType!, "mp4")
-                    const videoBlob = new Blob(videoChunks, { type: `video/${suffix}` })
-                    const videoArrayBuffer = await videoBlob.arrayBuffer()
-                    saveToDownloadsFolder(Buffer.from(videoArrayBuffer), { fileSuffix: suffix })
-                }
-            }
-        }) as PassMediaSourceFuncType)
+        }) as PassDataFunc)
 
         this.context.addListener("console", (consoleMessage) => {
             console.log("CONSOLE LOG MESSAGE: ", consoleMessage.text())

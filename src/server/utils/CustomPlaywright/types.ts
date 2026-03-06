@@ -11,16 +11,30 @@ export type PassLinksDataType = {
     link: string;
     pageUrl: string;
 } & ({
-    type?: "blob" | "file"
+    type?: "blob" | "file" | "mediasource"
 })
 
-export type PassLinksType = (data: PassLinksDataType[]) => Promise<void>
-
-export type PassMediaSourceDataType = {
-    [link: string]: {
-        readyState: ReadyState,
-        data: PassLinksMediaSourceDataType<Uint8Array>['data']
-    }
+export type GetExtensionFunc = {
+    (mimeType: string, backupExtension: string): string;
+    (mimeType: string): string | false;
 }
 
-export type PassMediaSourceFuncType = (data: PassMediaSourceDataType) => void
+export type NormalDataType = {
+    type: "normal";
+    bytes: Uint8Array<ArrayBuffer>;
+    fileSuffix: string;
+}
+export type MediaSourceDataType = {
+    type: "mediasource";
+    data: {
+        audio: {
+            bytes: Uint8Array<ArrayBuffer>;
+            fileSuffix: string | undefined;
+        } | null;
+        video: {
+            bytes: Uint8Array<ArrayBuffer>;
+            fileSuffix: string | undefined;
+        } | null;
+    };
+}
+export type PassDataFunc = (data: (NormalDataType | MediaSourceDataType)[]) => void

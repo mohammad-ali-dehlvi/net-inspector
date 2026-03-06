@@ -1,4 +1,4 @@
-import type { PassLinksType, PassMediaSourceFuncType } from "src/server/utils/CustomPlaywright/types";
+import type { GetExtensionFunc, PassDataFunc } from "src/server/utils/CustomPlaywright/types";
 import { FreezePage } from "./freezePage";
 import { Highlighter } from "./highlighter";
 import { MediaSourceDashboard } from "./mediaSourceDashboard";
@@ -7,8 +7,8 @@ import { registerShortcut } from "./functions";
 
 declare global {
     interface Window {
-        passLinks: PassLinksType;
-        passMediaSource: PassMediaSourceFuncType
+        getExtension: GetExtensionFunc
+        passData: PassDataFunc
     }
 }
 
@@ -20,10 +20,6 @@ const OriginalMediaSource = window.MediaSource;
 const originalAddSourceBuffer = MediaSource.prototype.addSourceBuffer;
 
 const mediaSourceDashboard = new MediaSourceDashboard()
-
-document.addEventListener("DOMContentLoaded", () => {
-    mediaSourceDashboard.renderHTML(document.body)
-})
 
 const originalCreateObjectURL = URL.createObjectURL
 URL.createObjectURL = (obj: any) => {

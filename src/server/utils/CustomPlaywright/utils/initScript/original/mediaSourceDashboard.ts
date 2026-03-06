@@ -1,9 +1,9 @@
-import { PassLinksDataType, PassLinksMediaSourceDataType, PassMediaSourceDataType } from "../../../types";
+import type { MediaSourceDataType, NormalDataType, PassLinksDataType, PassLinksMediaSourceDataType } from "src/server/utils/CustomPlaywright/types";
 import { Highlighter } from "./highlighter";
 
 export class MediaSourceDashboard {
     mediaSourceMap: Map<MediaSource, PassLinksMediaSourceDataType<ArrayBuffer>> = new Map()
-    urlMap: Map<string, { type: PassLinksDataType['type'] | "mediasource"; instance: MediaSource | Blob | File }> = new Map()
+    urlMap: Map<string, { type: PassLinksDataType['type']; instance: MediaSource | Blob | File }> = new Map()
     elements: { [key: string]: HTMLElement } = {}
     constructor() { }
 
@@ -26,16 +26,6 @@ export class MediaSourceDashboard {
                 data: []
             })
         }
-        const eventHandler = () => {
-            if (!document.body) {
-                document.addEventListener("DOMContentLoaded", eventHandler, { once: true })
-                return
-            }
-            this.renderHTML(document.body)
-        }
-        ms.addEventListener("sourceopen", eventHandler)
-        ms.addEventListener("sourceclose", eventHandler)
-        ms.addEventListener("sourceended", eventHandler)
     }
 
     setSourceBuffer(sb: SourceBuffer) {
@@ -71,7 +61,7 @@ export class MediaSourceDashboard {
         const { mediaSourceMap } = this
         const sourceBufferObj = mediaSourceMap.values().find(e => e.sourceBuffers.includes(sb))
 
-        if (sourceBufferObj && "mimeType" in sb && typeof sb.mimeType === "string" && "__parentMediaSource" in sb) {
+        if (sourceBufferObj && "mimeType" in sb && typeof sb.mimeType === "string") {
             sourceBufferObj.data.push({ mimeType: sb.mimeType, data: arrayBuffer })
             // serializeMediaSourceMap()
         }
@@ -79,7 +69,6 @@ export class MediaSourceDashboard {
 
     async sendToExpress() {
         const { urlMap, mediaSourceMap } = this
-        const data: PassLinksDataType[] = [];
 
         const splitHighlightedInstances = () => {
             const arr = Highlighter.instances
@@ -101,154 +90,144 @@ export class MediaSourceDashboard {
         }
         const { normalHighlighters, mediaSourceHighlighters } = splitHighlightedInstances()
 
-        window.passLinks(normalHighlighters.map((e) => {
-            const link = e.getLink()!
-            const urlObj = urlMap.get(link)
+        const getNormalFiles = async () => {
+            return await Promise.all(normalHighlighters.map(async (e): Promise<NormalDataType | null> => {
+                try {
+                    const link = e.getLink()!
+                    const urlObj = urlMap.get(link)
 
-            return {
-                link,
-                pageUrl: location.href,
-                type: !urlObj ? undefined : urlObj.type as Exclude<typeof urlObj.type, "mediasource">
-            }
-        }))
+                    if (!urlObj?.type || urlObj.type === "blob" || urlObj.type === "file") {
+                        const res = await fetch(link)
 
-        console.log("MEDIA SOURCE PROMISE STARTED...")
-        const start = Date.now()
-        const mediaSourceData = await Promise.all(mediaSourceHighlighters.map((obj) => {
-            const link = obj.getLink()!
-            const urlObj = urlMap.get(link)!
-            const ms = urlObj.instance as MediaSource
-            const checkReadyState = (ms: MediaSource) => {
-                if (ms.readyState === "closed" || ms.readyState === "ended") {
-                    const data = mediaSourceMap.get(ms)
-                    return data ? {
-                        link,
-                        readyState: ms.readyState,
-                        data: data.data.map((e) => {
-                            return {
-                                ...e,
-                                data: new Uint8Array(e.data)
-                            }
-                        })
-                    } : undefined
+                        const bytes = await res.bytes()
+
+                        const contentType = res.headers.get('content-type') ?? ""
+
+                        const mimeType = contentType.split(";")[0].trim();
+                        // removes charset → "image/svg+xml"
+
+                        const subtype = mimeType.split("/")[1] ?? "txt";
+                        // gets "svg+xml"
+
+                        const fileSuffix = subtype.split("+")[0];
+                        // removes "+xml" → "svg"
+
+                        return {
+                            type: "normal" as "normal",
+                            bytes,
+                            fileSuffix
+                        }
+                    } else {
+                        console.log(`File type is not supported ${urlObj.type}, ${link}`)
+                    }
+                } catch (err) {
+                    console.log(`File ERROR: `, e)
                 }
-                return undefined
-            }
-
-            const result = checkReadyState(ms)
-
-            if (result) {
-                return result
-            }
-
-            const promise = new Promise<{ link: string; readyState: ReadyState; data: PassLinksMediaSourceDataType<Uint8Array>['data'] } | undefined>((resolve) => {
-                const handleResolve = () => {
-                    console.log("ONE OF MEDIA SOURCE is completed...")
-                    resolve(checkReadyState(ms))
-                }
-                ms.addEventListener("sourceclose", handleResolve, { once: true })
-                ms.addEventListener("sourceended", handleResolve, { once: true })
-            })
-
-            return promise
-        }))
-        console.log("MEDIA SOURCE PROMISE COMPLETED...", (Date.now() - start) / 1000, "seconds")
-        console.log(mediaSourceData.map(e => e ? e.data.length : "NO DATA").join(", "))
-
-        window.passMediaSource(mediaSourceData.reduce((acc, curr) => {
-            if (curr) {
-                const { link, readyState, data } = curr
-
-                acc[link] = {
-                    readyState,
-                    data
-                }
-            }
-            return acc
-        }, {} as PassMediaSourceDataType))
-    }
-
-    renderHTML(parent?: HTMLElement) {
-        const { mediaSourceMap, elements } = this
-
-        const container = elements.container || document.createElement("div")
-        const mainText = elements.mainText || document.createElement("p")
-        const openMSText = elements.openMSText || document.createElement("span")
-        const closeMSText = elements.closeMSText || document.createElement("span")
-        const endedMSText = elements.endedMSText || document.createElement("span")
-        const downloadAnchor = (elements.downloadAnchor || document.createElement("a")) as HTMLAnchorElement
-        this.elements = { container, mainText, openMSText, closeMSText, endedMSText, downloadAnchor }
-
-        container.appendChild(mainText)
-        container.appendChild(downloadAnchor)
-        mainText.appendChild(openMSText)
-        mainText.appendChild(closeMSText)
-        mainText.appendChild(endedMSText)
-
-        if (parent && parent.children) {
-            parent.appendChild(container)
+                return null
+            }))
         }
 
-        container.style.position = "fixed"
-        container.style.bottom = "0px"
-        container.style.right = "0px"
-        container.style.padding = "5px 10px"
-        container.style.zIndex = "99999"
-        container.style.background = "white"
-        container.style.transition = "0.5s"
-        container.style.transform = "translateY(calc(100% - 5px))"
-        container.onmouseover = () => { container.style.transform = "translateY(0px)" }
-        container.onmouseout = () => { container.style.transform = "translateY(calc(100% - 5px))" }
+        const getMediaSourceFiles = async () => {
+            return await Promise.all(mediaSourceHighlighters.map((e) => {
+                const link = e.getLink()!
+                const urlObj = urlMap.get(link)!
+                const ms = urlObj.instance as MediaSource
+                const checkReadyState = async (ms: MediaSource): Promise<MediaSourceDataType | undefined> => {
+                    if (ms.readyState === "closed" || ms.readyState === "ended") {
+                        const data = mediaSourceMap.get(ms)
+                        if (data) {
+                            const audioChunks: Uint8Array<ArrayBuffer>[] = []
+                            const videoChunks: Uint8Array<ArrayBuffer>[] = []
 
-        mainText.style.fontWeight = "700"
-        mainText.style.color = "black"
+                            let audioMimeType: string | undefined
+                            let videoMimeType: string | undefined
+                            data.data.forEach((e) => {
+                                if (e.mimeType.includes("video")) {
+                                    videoMimeType = e.mimeType
+                                    videoChunks.push(new Uint8Array(e.data))
+                                } else if (e.mimeType.includes("audio")) {
+                                    audioMimeType = e.mimeType
+                                    audioChunks.push(new Uint8Array(e.data))
+                                }
+                            })
 
-        openMSText.style.color = "green"
+                            const videoBlob = await (async () => {
+                                if (videoChunks.length > 0) {
+                                    const videoSuffix = await window.getExtension(videoMimeType!, "mp4")
 
-        closeMSText.style.color = "red"
+                                    console.log("VIDEO SUFFIX: ", videoSuffix)
 
-        const mediaSourceArr = Array.from(mediaSourceMap.keys())
+                                    return new Blob(videoChunks, { type: `video/${videoSuffix}` })
+                                }
+                                return null
+                            })()
 
-        const obj = mediaSourceArr.reduce((acc, curr) => {
-            if (curr.readyState === "closed") {
-                acc.close.push(curr)
-            } else if (curr.readyState === "ended") {
-                acc.ended.push(curr)
-            } else if (curr.readyState === "open") {
-                acc.open.push(curr)
-            }
 
-            return acc
-        }, { open: [] as MediaSource[], close: [] as MediaSource[], ended: [] as MediaSource[] })
+                            const audioBlob = await (async () => {
+                                if (audioChunks.length > 0) {
+                                    const audioSuffix = await window.getExtension(audioMimeType!, "mp3")
 
-        const createTitle = (arr: MediaSource[]) => arr.length > 0 ? arr.map(e => e.duration + 's').join(", ") : ""
-        openMSText.innerText = `${obj.open.length} Open`
-        openMSText.title = createTitle(obj.open)
-        closeMSText.innerText = `${obj.close.length} Closed`
-        closeMSText.title = createTitle(obj.close)
-        endedMSText.innerText = `${obj.ended.length} Ended`
-        endedMSText.title = createTitle(obj.ended)
+                                    console.log("AUDIO SUFFIX: ", audioSuffix)
 
-        // if (!testVideo.src) {
+                                    return new Blob(audioChunks, { type: `audio/${audioSuffix}` })
+                                }
+                                return null
+                            })()
+                            return data ? {
+                                type: "mediasource" as "mediasource",
+                                data: {
+                                    audio: audioBlob ?
+                                        {
+                                            bytes: new Uint8Array(await audioBlob.arrayBuffer()),
+                                            fileSuffix: audioBlob.type.split("/").at(-1)
+                                        } : null,
+                                    video: videoBlob ?
+                                        {
+                                            bytes: new Uint8Array(await videoBlob.arrayBuffer()),
+                                            fileSuffix: videoBlob.type.split("/").at(-1)
+                                        } : null
+                                }
+                            } : undefined
+                        }
+                        return undefined
+                    }
+                }
 
-        // }
-        downloadAnchor.innerText = "Download"
-        downloadAnchor.download = "file.mp4"
-        if (obj.ended.length > 0) {
-            const ms = obj.ended[0]
-            const data = mediaSourceMap.get(ms)!
-            const buffers: ArrayBuffer[] = []
-            for (let i = 0; i < data.data.length; i++) {
-                const item = data.data[i]
-                if (item.mimeType.includes("video")) {
-                    buffers.push(item.data.slice(0))
+                const result = checkReadyState(ms)
+
+                if (result) {
+                    return result
+                }
+
+                const promise = new Promise<ReturnType<typeof checkReadyState> | undefined>((resolve) => {
+                    const handleResolve = () => {
+                        console.log("ONE OF MEDIA SOURCE is completed...")
+                        setTimeout(() => {
+                            resolve(checkReadyState(ms))
+                        }, 500)
+                    }
+                    ms.addEventListener("sourceclose", handleResolve, { once: true })
+                    ms.addEventListener("sourceended", handleResolve, { once: true })
+                })
+
+                return promise
+            }))
+        }
+
+        const finalResult = (await Promise.all([getNormalFiles(), getMediaSourceFiles()]))
+
+        const formattedResult: (NormalDataType | MediaSourceDataType)[] = []
+
+        for (let i = 0; i < finalResult.length; i++) {
+            for (let j = 0; j < finalResult[i].length; j++) {
+                const data = finalResult[i][j]
+                if (!!data) {
+                    formattedResult.push(data)
                 }
             }
-            const blob = new Blob(buffers, { type: "video/mp4" })
-            const url = URL.createObjectURL(blob)
-
-            downloadAnchor.href = url
         }
+
+        window.passData(formattedResult)
     }
 
 }
