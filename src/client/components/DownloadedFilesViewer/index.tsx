@@ -1,10 +1,11 @@
+import moment from "moment";
 import { CSSProperties, useCallback } from "react";
 import styles from "src/client/components/DownloadedFilesViewer/styles.module.css";
 import Header from "src/client/components/Header";
 import HeaderLink from "src/client/components/Header/HeaderLink";
 
 interface DownloadedFilesViewerProps {
-    data: { url: string; create_at?: string }[]
+    data: { url: string; created_at?: string | null }[]
 }
 
 export default function DownloadedFilesViewer(props: DownloadedFilesViewerProps) {
@@ -23,7 +24,7 @@ export default function DownloadedFilesViewer(props: DownloadedFilesViewerProps)
         <div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }} >
                 {data.map((e) => {
-                    const createdAt = e.create_at ? new Date(e.create_at) : null
+                    const createdAt = e.created_at ? new Date(e.created_at) : null
                     const type = getMediaType(e.url)
                     const style: CSSProperties = { width: "100%", maxHeight: "max(calc(100vh - 100px), 200px)", objectFit: "contain" }
                     return <div key={e.url} className={styles.item} >
@@ -32,8 +33,8 @@ export default function DownloadedFilesViewer(props: DownloadedFilesViewerProps)
                                 type === "image" ? <img src={e.url} style={style} /> :
                                     <iframe src={e.url} />}
                         {!!createdAt && (
-                            <div className={styles.create_at} >
-                                <p>{createdAt.toString()}</p>
+                            <div className={styles.created_at} >
+                                <p>{moment(createdAt).format("DD MMM YYYY hh:mm a")}</p>
                             </div>
                         )}
                     </div>
