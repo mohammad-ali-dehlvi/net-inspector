@@ -4,6 +4,7 @@ import useApiHook from "src/client/hooks/useApiHook";
 import { videoService } from "src/client/services";
 import cssStyles from "src/client/pages/all_videos/style.module.css";
 import Header from "src/client/components/Header";
+import HeaderLink from "src/client/components/Header/HeaderLink";
 
 export default function AllVideos() {
   const { data, loading, error, hitApi } = useApiHook({ callback: videoService.getNameList });
@@ -21,7 +22,7 @@ export default function AllVideos() {
         <Header
           leftComponent={(
             <div className={cssStyles['topbar-crumb']}>
-              <Link to="/" style={{ color: "var(--text-darker)", textDecoration: "none", letterSpacing: "0.06em" }}>HOME</Link>
+              <HeaderLink to="/" >HOME</HeaderLink>
               <span className={cssStyles['topbar-crumb-sep']}>/</span>
               <span className={cssStyles['topbar-crumb-active']}>VIDEOS</span>
             </div>

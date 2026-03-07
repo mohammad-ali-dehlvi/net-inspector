@@ -11,7 +11,7 @@ import useApiHook from "src/client/hooks/useApiHook";
 import { VideoDetailProvider } from "src/client/pages/video_detail/context/videoDetail"
 import VideoDetailPlayerContextProvider from "src/client/pages/video_detail/context/VideoDetailPlayerContext"
 import { videoService } from "src/client/services";
-import DownloadedFilesViewer from "./components/DownloadedFilesViewer";
+import DownloadedFilesViewer from "../../components/DownloadedFilesViewer";
 
 export default function VideoDetail() {
     const { name = "" } = useParams()

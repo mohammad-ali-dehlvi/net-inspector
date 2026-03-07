@@ -63,19 +63,75 @@ export async function muxStreams(video: Buffer | string, audio: Buffer | string,
     const audioPath = audio as string
     return new Promise((resolve, reject) => {
         ffmpeg()
-            .input(videoPath)
+            .input(videoPath)   // video is source of truth
             .input(audioPath)
-            .outputOptions([
-                "-c:v copy",
-                "-c:a copy"
-
-                // "-c:v copy",
-                // "-c:a aac",
-                // "-b:a 192k"
+            .complexFilter([
+                {
+                    filter: "apad",
+                    inputs: "1:a",
+                    outputs: "a"
+                }
             ])
-            .save(outputPath)
-            .on("end", resolve)
-            .on("error", reject)
+            .outputOptions([
+                "-map 0:v",
+                "-map [a]",
+                "-c:v copy",
+                "-c:a aac",
+                "-shortest",
+                "-fflags +genpts",
+                "-avoid_negative_ts make_zero"
+            ])
+            .on("start", (cmd) => {
+                console.log("FFmpeg command:", cmd);
+            })
+            .on("progress", (progress) => {
+                console.log("Processing:", progress.percent ? progress.percent.toFixed(2) + "%" : "");
+            })
+            .on("end", () => {
+                console.log("Muxing finished");
+                resolve(true);
+            })
+            .on("error", (err) => {
+                console.error("FFmpeg error:", err);
+                reject(err);
+            })
+            .save(outputPath);
+
+        // ffmpeg()
+        //     .input(videoPath)
+        //     .input(audioPath)
+        //     .outputOptions([
+        //         "-c:v copy",
+        //         "-c:a copy"
+
+        //         // "-c:v copy",
+        //         // "-c:a aac",
+        //         // "-b:a 192k"
+        //     ])
+        //     .save(outputPath)
+        //     .on("end", resolve)
+        //     .on("error", reject)
     })
 }
 
+export class RandomFileName {
+    private static saperator = "_"
+    static createName(fileSuffix?: string) {
+        const name = `${Date.now()}${this.saperator}${Math.random().toString(16).slice(2)}`
+        if (fileSuffix) {
+            return `${name}.${fileSuffix}`
+        }
+        return name
+    }
+    static getDateFromName(name: string) {
+        try {
+            const date = new Date(Number(name.split(this.saperator)[0]))
+            if (date instanceof Date && !isNaN(date.getTime())) {
+                return date.toISOString()
+            }
+        } catch (err) {
+            console.log("ERROR GET DATE FROM NAME: ", err)
+        }
+        return null
+    }
+}

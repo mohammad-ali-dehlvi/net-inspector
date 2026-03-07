@@ -24,3 +24,13 @@ export type VideoNameResponse = {
     success: false
     message: string
 }
+
+export type AllDownloadsResponse = {
+    success: true
+    data: {
+        urls: { url: string; created_at: string | null }[]
+    }
+} | {
+    success: false
+    message: string
+}

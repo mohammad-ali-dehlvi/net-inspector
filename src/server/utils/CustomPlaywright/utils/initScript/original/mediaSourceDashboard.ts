@@ -7,17 +7,6 @@ export class MediaSourceDashboard {
     elements: { [key: string]: HTMLElement } = {}
     constructor() { }
 
-    async appendArrayBuffer(sb: SourceBuffer, arrayBuffer: BufferSource) {
-        const promise = new Promise<"done">((resolve, reject) => {
-            sb.addEventListener("updateend", () => {
-                resolve("done")
-            }, { once: true })
-            sb.appendBuffer(arrayBuffer)
-        })
-
-        return await promise
-    }
-
     setMediaSource(ms: MediaSource) {
         const { mediaSourceMap } = this
         if (!mediaSourceMap.has(ms)) {

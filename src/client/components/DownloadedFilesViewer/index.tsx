@@ -1,7 +1,10 @@
 import { CSSProperties, useCallback } from "react";
+import styles from "src/client/components/DownloadedFilesViewer/styles.module.css";
+import Header from "src/client/components/Header";
+import HeaderLink from "src/client/components/Header/HeaderLink";
 
 interface DownloadedFilesViewerProps {
-    data: { url: string }[]
+    data: { url: string; create_at?: string }[]
 }
 
 export default function DownloadedFilesViewer(props: DownloadedFilesViewerProps) {
@@ -20,13 +23,19 @@ export default function DownloadedFilesViewer(props: DownloadedFilesViewerProps)
         <div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px" }} >
                 {data.map((e) => {
+                    const createdAt = e.create_at ? new Date(e.create_at) : null
                     const type = getMediaType(e.url)
-                    const style: CSSProperties = { width: "100%", maxHeight: "calc(100vh - 85px)", objectFit: "contain" }
-                    return <div key={e.url} >
+                    const style: CSSProperties = { width: "100%", maxHeight: "max(calc(100vh - 100px), 200px)", objectFit: "contain" }
+                    return <div key={e.url} className={styles.item} >
                         {type === "audio" ? <audio src={e.url} controls style={style} /> :
                             type === "video" ? <video src={e.url} controls style={style} /> :
                                 type === "image" ? <img src={e.url} style={style} /> :
                                     <iframe src={e.url} />}
+                        {!!createdAt && (
+                            <div className={styles.create_at} >
+                                <p>{createdAt.toString()}</p>
+                            </div>
+                        )}
                     </div>
                 })}
             </div>

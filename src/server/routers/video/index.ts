@@ -1,9 +1,10 @@
 import express from "express";
 import * as path from "node:path";
 import * as fs from "node:fs";
-import { VideoListResponse, VideoNameData, VideoNameResponse, VideoNameUrlParams } from "src/server/routers/video/types";
+import { AllDownloadsResponse, VideoListResponse, VideoNameData, VideoNameResponse, VideoNameUrlParams } from "src/server/routers/video/types";
 import { CustomPlaywrightPage, ResultType } from "src/server/utils/CustomPlaywright";
 import { NetworkItemType } from "src/shared/types";
+import { RandomFileName } from "src/server/utils/functions";
 
 const router = express.Router()
 
@@ -68,6 +69,42 @@ router.get<VideoNameUrlParams, VideoNameResponse>("/details/:folder_name", (req,
         res.status(200).json({ success: true, data: obj })
     } catch (err) {
         res.status(500).json({ success: false, message: (err as Error).message })
+    }
+})
+
+router.get<{}, AllDownloadsResponse>("/all-downloads", (req, res) => {
+    try {
+        if (fs.existsSync(CustomPlaywrightPage.all_downloads_folder)) {
+            const names = fs.readdirSync(CustomPlaywrightPage.all_downloads_folder)
+            const result: AllDownloadsResponse = {
+                success: true,
+                data: {
+                    urls: names.map((name) => {
+                        return {
+                            url: `/data/${CustomPlaywrightPage.all_downloads_folder_name}/${name}`,
+                            created_at: RandomFileName.getDateFromName(name)
+                        }
+                    })
+                }
+            }
+            res
+                .status(200)
+                .send(result)
+        } else {
+            res
+                .status(404)
+                .send({
+                    success: false,
+                    message: 'All Downloads folder not found'
+                })
+        }
+    } catch (err) {
+        console.log("ERROR All downloads file: ", err)
+        res.status(500)
+            .send({
+                success: false,
+                message: 'Something went wrong'
+            })
     }
 })
 

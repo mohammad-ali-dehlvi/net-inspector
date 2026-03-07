@@ -1,5 +1,5 @@
 import axios from "axios";
-import { VideoListResponse, VideoNameResponse } from "src/server/routers/video/types"
+import { AllDownloadsResponse, VideoListResponse, VideoNameResponse } from "src/server/routers/video/types"
 
 class VideoService {
     async getNameList() {
@@ -37,6 +37,19 @@ class VideoService {
                             }
                         }
                     })
+                }
+            }
+        }
+        return res.data
+    }
+
+    async getAllDownloads() {
+        const res = await axios.get<AllDownloadsResponse>("/api/video/all-downloads")
+        if (res.data.success) {
+            return {
+                ...res.data,
+                data: {
+                    urls: res.data.data.urls.map(urlObj => ({ ...urlObj, url: `/api${urlObj.url}` }))
                 }
             }
         }

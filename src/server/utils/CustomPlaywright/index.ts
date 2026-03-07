@@ -6,7 +6,7 @@ import { NetworkItemType } from "src/shared/types";
 import { BrowserApiRequest } from "src/server/routers/browser/types";
 import { spawn } from "child_process"
 import { GetExtensionFunc, PassDataFunc } from "src/server/utils/CustomPlaywright/types";
-import { getExtension, muxStreams } from "src/server/utils/functions";
+import { RandomFileName, getExtension, muxStreams } from "src/server/utils/functions";
 
 export type BrowserStatus = "started" | "stopped"
 
@@ -57,6 +57,8 @@ export class CustomPlaywrightPage {
     static videos_folder_path = "videos"
     static files_folder_path = "files"
     static download_files_folder_path = "downloaded_files"
+    static all_downloads_folder_name = "all_downloads"
+    static all_downloads_folder = path.join(process.cwd(), 'data', this.all_downloads_folder_name)
 
     private constructor() { }
 
@@ -167,7 +169,7 @@ export class CustomPlaywrightPage {
                 const fileSuffix = subtype.split("+")[0];
                 // removes "+xml" → "svg"
 
-                const fileName = `${Date.now()}_${Math.random().toString(16).slice(2)}.${fileSuffix}`
+                const fileName = RandomFileName.createName(fileSuffix)
                 const filePath = path.join(videoPath, CustomPlaywrightPage.files_folder_path, fileName)
                 fs.mkdirSync(path.dirname(filePath), { recursive: true })
                 fs.writeFileSync(filePath, data)
@@ -312,10 +314,20 @@ export class CustomPlaywrightPage {
             path: path.resolve(path.join(this.playwright_main_folder, "utils", "initScript", "dist-utils", "utils.bundle.js"))
         })
 
+        const copyToAllDownloads = (fromPath: string) => {
+            const fileName = path.basename(fromPath)
+            const toPathDir = CustomPlaywrightPage.all_downloads_folder
+            if (!fs.existsSync(toPathDir)) {
+                fs.mkdirSync(toPathDir, { recursive: true })
+            }
+            const toPath = path.join(toPathDir, fileName)
+            path.dirname(toPath)
+            fs.copyFileSync(fromPath, toPath)
+        }
+
         const saveToDownloadsFolder = (bytes: Uint8Array, obj: { fileName?: string; fileSuffix?: string } = {}) => {
             const { fileName, fileSuffix } = obj
-            const randomName = `${Date.now()}_${Math.random().toString(16).slice(2)}`
-            const fixFileName = fileName ? fileName : fileSuffix ? `${randomName}.${fileSuffix}` : randomName
+            const fixFileName = fileName ? fileName : RandomFileName.createName(fileSuffix)
 
             const filePath = path.join(videoPath, CustomPlaywrightPage.download_files_folder_path, fixFileName)
             const dirPath = path.dirname(filePath)
@@ -323,6 +335,7 @@ export class CustomPlaywrightPage {
                 fs.mkdirSync(dirPath, { recursive: true })
             }
             fs.writeFileSync(filePath, bytes)
+            copyToAllDownloads(filePath)
         }
 
         this.context.exposeFunction("getExtension", ((mimeType, backupExtension) => {
@@ -332,7 +345,6 @@ export class CustomPlaywrightPage {
         }) as GetExtensionFunc)
 
         this.context.exposeFunction("passData", (async (data) => {
-            console.log("TOTAL Data: ", data)
             for (let i = 0; i < data.length; i++) {
                 const obj = data[i]
                 try {
@@ -347,8 +359,9 @@ export class CustomPlaywrightPage {
                         if (video && audio) {
                             const { fileSuffix: videoSuffix, bytes: videoBytes } = video
                             const { bytes: audioBytes } = audio
-                            const outputPath = path.join(videoPath, CustomPlaywrightPage.download_files_folder_path, `${Date.now()}_${Math.random().toString(16).slice(2)}.${videoSuffix}`)
+                            const outputPath = path.join(videoPath, CustomPlaywrightPage.download_files_folder_path, RandomFileName.createName(videoSuffix))
                             await muxStreams(Buffer.from(videoBytes), Buffer.from(audioBytes), outputPath)
+                            copyToAllDownloads(outputPath)
                         } else if (video || audio) {
                             const data = (video || audio)!
                             saveToDownloadsFolder(Buffer.from(data.bytes), { fileSuffix: data.fileSuffix })

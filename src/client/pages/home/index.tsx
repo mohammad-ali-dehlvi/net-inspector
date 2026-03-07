@@ -186,6 +186,11 @@ export default function Home() {
                                     Videos
                                     <span className={cssStyles.navLinkArrow}>→</span>
                                 </Link>
+                                <Link to="/all-downloads" className={cssStyles.navLink}>
+                                    <div className={cssStyles.navLinkDot} style={{ background: "var(--theme-info)" }} />
+                                    All Downloads
+                                    <span className={cssStyles.navLinkArrow}>→</span>
+                                </Link>
                             </div>
                         </div>
 
