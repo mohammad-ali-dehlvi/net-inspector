@@ -1,5 +1,5 @@
 import { ResultType } from "src/server/utils/CustomPlaywright"
-import { NetworkItemType } from "src/shared/types"
+import { DownloadFileResponseType, NetworkItemType } from "src/shared/types"
 
 export type VideoListResponse = {
     success: true
@@ -28,8 +28,19 @@ export type VideoNameResponse = {
 export type AllDownloadsResponse = {
     success: true
     data: {
-        urls: { url: string; created_at: string | null }[]
+        urls: DownloadFileResponseType[]
     }
+} | {
+    success: false
+    message: string
+}
+
+export type AllDownloadsFileDeleteRequest = {
+    file_name: string
+}
+
+export type AllDownloadsFileDeleteResponse = {
+    success: true
 } | {
     success: false
     message: string

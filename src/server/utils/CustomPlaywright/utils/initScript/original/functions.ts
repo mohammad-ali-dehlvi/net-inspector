@@ -1,7 +1,8 @@
 
 
-export function registerShortcut(keys: string[], callback: (e: KeyboardEvent) => void) {
-    document.addEventListener("keydown", function (event) {
+export function registerShortcut(keys: string[], callback: (e: KeyboardEvent) => void, ele?: HTMLElement) {
+    (ele || document).addEventListener("keydown", function (e) {
+        const event = e as KeyboardEvent
         const key = event.key.toLowerCase();
 
         const conditions = {
@@ -20,5 +21,5 @@ export function registerShortcut(keys: string[], callback: (e: KeyboardEvent) =>
             event.preventDefault();
             callback(event);
         }
-    });
+    }, true);
 }

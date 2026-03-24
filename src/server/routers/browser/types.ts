@@ -1,4 +1,5 @@
 import { BrowserStatus, ResponseProgress } from "src/server/utils/CustomPlaywright"
+import { FFMPEGProgress } from "src/server/utils/functions"
 import { NetworkItemType } from "src/shared/types"
 
 export type BrowserStatusResponse = {
@@ -41,4 +42,7 @@ export type BrowserSocketStatusType = {
 } | {
     type: "unknown",
     data: any
+} | {
+    type: "ffmpeg_progress",
+    data: FFMPEGProgress
 }

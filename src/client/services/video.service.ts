@@ -1,5 +1,5 @@
 import axios from "axios";
-import { AllDownloadsResponse, VideoListResponse, VideoNameResponse } from "src/server/routers/video/types"
+import { AllDownloadsFileDeleteResponse, AllDownloadsResponse, VideoListResponse, VideoNameResponse } from "src/server/routers/video/types"
 
 class VideoService {
     async getNameList() {
@@ -49,10 +49,25 @@ class VideoService {
             return {
                 ...res.data,
                 data: {
-                    urls: res.data.data.urls.map(urlObj => ({ ...urlObj, url: `/api${urlObj.url}` }))
+                    urls: res.data.data.urls.map(urlObj => ({
+                        ...urlObj,
+                        url: "url" in urlObj ?
+                            `/api${urlObj.url}` :
+                            undefined,
+                        urls: "urls" in urlObj ?
+                            urlObj.urls.map((e) => ({
+                                url: `/api${e.url}`
+                            })) :
+                            undefined
+                    }))
                 }
             }
         }
+        return res.data
+    }
+
+    async deleteAllDownloadFile(fileName: string) {
+        const res = await axios.delete<AllDownloadsFileDeleteResponse>(`/api/video/all-downloads/${fileName}`)
         return res.data
     }
 }

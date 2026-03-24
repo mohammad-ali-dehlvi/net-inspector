@@ -20,6 +20,7 @@ export default function VideoDetail() {
     const { data, error, loading, hitApi } = useApiHook({ callback: videoService.getNameDetails })
 
     const downloadedFiles = useMemo(() => {
+        console.log("DATA: ", data)
         if (data?.success) {
             return data.data.downloadFiles
         }
@@ -34,6 +35,7 @@ export default function VideoDetail() {
     }, [data])
 
     useEffect(() => {
+        console.log({ tabValues, tabValue })
         if (tabValues.length > 0 && !tabValues.includes(tabValue)) {
             setTabValue(tabValues[0])
         }
@@ -66,7 +68,7 @@ export default function VideoDetail() {
             {data && data.success && (
                 // <NetworkVideoPlayer />
                 <div>
-                    {data.data.result.length > 1 || !!downloadedFiles && (
+                    {(data.data.result.length > 1 || !!downloadedFiles) && (
                         <Tabs value={tabValue} onChange={setTabValue} >
                             {data.data.result.map((item, index) => {
                                 return (

@@ -1,3 +1,4 @@
 node_modules
 data
 src/server/utils/CustomPlaywright/utils/initScript/dist-utils
+/test

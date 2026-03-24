@@ -1,10 +1,11 @@
 import express from "express";
 import * as path from "node:path";
 import * as fs from "node:fs";
-import { AllDownloadsResponse, VideoListResponse, VideoNameData, VideoNameResponse, VideoNameUrlParams } from "src/server/routers/video/types";
+import { AllDownloadsFileDeleteRequest, AllDownloadsFileDeleteResponse, AllDownloadsResponse, VideoListResponse, VideoNameData, VideoNameResponse, VideoNameUrlParams } from "src/server/routers/video/types";
 import { CustomPlaywrightPage, ResultType } from "src/server/utils/CustomPlaywright";
 import { NetworkItemType } from "src/shared/types";
 import { RandomFileName } from "src/server/utils/functions";
+import { parseDownloadFileUrl } from "./utils/functions";
 
 const router = express.Router()
 
@@ -58,9 +59,8 @@ router.get<VideoNameUrlParams, VideoNameResponse>("/details/:folder_name", (req,
         if (fs.existsSync(downloadedFilesPath)) {
             const downloadedFilesName = fs.readdirSync(downloadedFilesPath)
             networkObj.downloadFiles = downloadedFilesName.map((name) => {
-                return {
-                    url: `${staticBaseURL}/${CustomPlaywrightPage.download_files_folder_path}/${name}`
-                }
+                const p = path.join(downloadedFilesPath, name)
+                return parseDownloadFileUrl(p)
             })
         }
 
@@ -80,10 +80,7 @@ router.get<{}, AllDownloadsResponse>("/all-downloads", (req, res) => {
                 success: true,
                 data: {
                     urls: names.map((name) => {
-                        return {
-                            url: `/data/${CustomPlaywrightPage.all_downloads_folder_name}/${name}`,
-                            created_at: RandomFileName.getDateFromName(name)
-                        }
+                        return parseDownloadFileUrl(path.join(CustomPlaywrightPage.all_downloads_folder, name))
                     })
                 }
             }
@@ -105,6 +102,22 @@ router.get<{}, AllDownloadsResponse>("/all-downloads", (req, res) => {
                 success: false,
                 message: 'Something went wrong'
             })
+    }
+})
+
+router.delete<AllDownloadsFileDeleteRequest, AllDownloadsFileDeleteResponse>("/all-downloads/:file_name", (req, res) => {
+    try {
+        const fileName = req.params.file_name
+        const filePath = path.join(CustomPlaywrightPage.all_downloads_folder, fileName)
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath)
+            res.send({ success: true })
+            return
+        } else {
+            res.send({ success: false, message: "File not found" })
+        }
+    } catch (err) {
+        res.send({ success: false, message: (err as Error).message })
     }
 })
 

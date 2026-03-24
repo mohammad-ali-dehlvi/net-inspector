@@ -21,20 +21,36 @@ export type GetExtensionFunc = {
 
 export type NormalDataType = {
     type: "normal";
-    bytes: Uint8Array<ArrayBuffer>;
+    // bytes: Uint8Array<ArrayBuffer>;
+    url: string;
+    // uid: string;
     fileSuffix: string;
 }
 export type MediaSourceDataType = {
     type: "mediasource";
     data: {
         audio: {
-            bytes: Uint8Array<ArrayBuffer>;
+            // bytes: Uint8Array<ArrayBuffer>;
+            url: string;
+            // uid: string;
             fileSuffix: string | undefined;
         } | null;
         video: {
-            bytes: Uint8Array<ArrayBuffer>;
+            // bytes: Uint8Array<ArrayBuffer>;
+            url: string;
+            // uid: string;
             fileSuffix: string | undefined;
         } | null;
     };
 }
 export type PassDataFunc = (data: (NormalDataType | MediaSourceDataType)[]) => void
+
+export type HighlightObj = {
+    total: number | null;
+    loaded: number;
+    percentCompleted: number | null;
+}
+
+export type HighlightProgress = {
+    [index: string | number]: HighlightObj
+}

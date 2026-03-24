@@ -9,8 +9,11 @@ declare global {
     interface Window {
         getExtension: GetExtensionFunc
         passData: PassDataFunc
+        _blobs: { [uid: string]: Blob }
     }
 }
+
+window._blobs = {}
 
 // @ts-ignore
 window.__name = (fn: Function, name: string) =>
@@ -110,11 +113,26 @@ registerShortcut(['ctrl', 'shift', 's'], (e) => {
     e.preventDefault();
     e.stopPropagation();
 
+    console.log("KEY PRESS: 'ctrl' + 'shift' + 's'")
+    console.log(Highlighter.instances)
+
     FreezePage.freeze()
     mediaSourceDashboard.sendToExpress().finally(() => {
         FreezePage.unfreezeFn?.()
     })
 })
+
+const originalStop = Event.prototype.stopPropagation;
+
+Event.prototype.stopPropagation = function () {
+    console.log("EVENT STOP PROPAGATION: ", this)
+    // You can log here to see who is killing your events
+    // console.warn('Propagation stopped on:', this.type);
+
+    // Optionally: do nothing here to "disable" stopPropagation site-wide
+    // Or just call the original:
+    originalStop.apply(this);
+};
 
 let count = 0
 function animationLoop() {

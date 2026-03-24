@@ -36,3 +36,11 @@ export type NetworkItemType = {
         }
     }
 }
+
+export type DownloadFileResponseType = {
+    url: string
+    created_at?: string | null
+} | {
+    created_at?: string | null
+    urls: { url: string; }[]
+}

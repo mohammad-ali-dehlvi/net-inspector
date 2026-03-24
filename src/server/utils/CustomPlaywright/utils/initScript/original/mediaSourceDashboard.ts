@@ -1,5 +1,6 @@
-import type { MediaSourceDataType, NormalDataType, PassLinksDataType, PassLinksMediaSourceDataType } from "src/server/utils/CustomPlaywright/types";
+import type { MediaSourceDataType, NormalDataType, HighlightObj, PassLinksDataType, PassLinksMediaSourceDataType } from "src/server/utils/CustomPlaywright/types";
 import { Highlighter } from "./highlighter";
+import { downloadProgressDispatchEvent } from "./customEventCreator"
 
 export class MediaSourceDashboard {
     mediaSourceMap: Map<MediaSource, PassLinksMediaSourceDataType<ArrayBuffer>> = new Map()
@@ -59,10 +60,12 @@ export class MediaSourceDashboard {
     async sendToExpress() {
         const { urlMap, mediaSourceMap } = this
 
+        const getUid = () => `${Date.now()}_${Math.random().toString(16).slice(2)}`
+
         const splitHighlightedInstances = () => {
             const arr = Highlighter.instances
-            const normalHighlighters: Highlighter[] = []
-            const mediaSourceHighlighters: Highlighter[] = []
+            const normalHighlighters: { e: Highlighter; index: number }[] = []
+            const mediaSourceHighlighters: { e: Highlighter; index: number }[] = []
 
             for (let i = 0; i < arr.length; i++) {
                 const obj = arr[i]
@@ -70,9 +73,9 @@ export class MediaSourceDashboard {
                 if (!link) continue
                 const urlObj = urlMap.get(link)
                 if (urlObj?.type !== "mediasource") {
-                    normalHighlighters.push(obj)
+                    normalHighlighters.push({ e: obj, index: i })
                 } else if (urlObj.instance instanceof MediaSource) {
-                    mediaSourceHighlighters.push(obj)
+                    mediaSourceHighlighters.push({ e: obj, index: i })
                 }
             }
             return { normalHighlighters, mediaSourceHighlighters }
@@ -80,15 +83,29 @@ export class MediaSourceDashboard {
         const { normalHighlighters, mediaSourceHighlighters } = splitHighlightedInstances()
 
         const getNormalFiles = async () => {
-            return await Promise.all(normalHighlighters.map(async (e): Promise<NormalDataType | null> => {
+            return await Promise.all(normalHighlighters.map(async (item, i): Promise<NormalDataType | null> => {
+                const { e, index } = item
+                console.log("NORMAL FILE DOWNLOAD")
                 try {
                     const link = e.getLink()!
                     const urlObj = urlMap.get(link)
 
                     if (!urlObj?.type || urlObj.type === "blob" || urlObj.type === "file") {
-                        const res = await fetch(link)
+                        const result = await this.downloadWithProgress(
+                            link,
+                            {
+                                onProgress: (data) => {
+                                    downloadProgressDispatchEvent({ [index]: data })
+                                }
+                            }
+                        )
 
-                        const bytes = await res.bytes()
+                        if (!result) {
+                            console.log("ERROR result is null for: ", link)
+                            return null
+                        }
+
+                        const { blob, response: res } = result
 
                         const contentType = res.headers.get('content-type') ?? ""
 
@@ -101,89 +118,129 @@ export class MediaSourceDashboard {
                         const fileSuffix = subtype.split("+")[0];
                         // removes "+xml" → "svg"
 
+                        // const uid = getUid()
+                        // window._blobs[uid] = blob;
+
                         return {
                             type: "normal" as "normal",
-                            bytes,
+                            url: URL.createObjectURL(blob),
+                            // uid,
                             fileSuffix
                         }
                     } else {
                         console.log(`File type is not supported ${urlObj.type}, ${link}`)
                     }
                 } catch (err) {
-                    console.log(`File ERROR: `, e)
+                    console.log(`File ERROR: `, (err as Error).message)
                 }
                 return null
             }))
         }
 
         const getMediaSourceFiles = async () => {
-            return await Promise.all(mediaSourceHighlighters.map((e) => {
+            return await Promise.all(mediaSourceHighlighters.map(async (item) => {
+                const { e, index } = item
                 const link = e.getLink()!
+                console.log("MEDIA SOURCE download: ", link)
+                this.mediaSourceProgress(link, {
+                    onProgress: (data) => {
+                        downloadProgressDispatchEvent({
+                            [index]: data
+                        })
+                    }
+                })
                 const urlObj = urlMap.get(link)!
                 const ms = urlObj.instance as MediaSource
                 const checkReadyState = async (ms: MediaSource): Promise<MediaSourceDataType | undefined> => {
-                    if (ms.readyState === "closed" || ms.readyState === "ended") {
-                        const data = mediaSourceMap.get(ms)
-                        if (data) {
-                            const audioChunks: Uint8Array<ArrayBuffer>[] = []
-                            const videoChunks: Uint8Array<ArrayBuffer>[] = []
+                    try {
+                        if (ms.readyState === "closed" || ms.readyState === "ended") {
+                            const data = mediaSourceMap.get(ms)
+                            if (data) {
+                                const audioChunks: Uint8Array<ArrayBuffer>[] = []
+                                const videoChunks: Uint8Array<ArrayBuffer>[] = []
 
-                            let audioMimeType: string | undefined
-                            let videoMimeType: string | undefined
-                            data.data.forEach((e) => {
-                                if (e.mimeType.includes("video")) {
-                                    videoMimeType = e.mimeType
-                                    videoChunks.push(new Uint8Array(e.data))
-                                } else if (e.mimeType.includes("audio")) {
-                                    audioMimeType = e.mimeType
-                                    audioChunks.push(new Uint8Array(e.data))
-                                }
-                            })
+                                let audioMimeType: string | undefined
+                                let videoMimeType: string | undefined
+                                data.data.forEach((e) => {
+                                    if (e.mimeType.includes("video")) {
+                                        videoMimeType = e.mimeType
+                                        videoChunks.push(new Uint8Array(e.data))
+                                    } else if (e.mimeType.includes("audio")) {
+                                        audioMimeType = e.mimeType
+                                        audioChunks.push(new Uint8Array(e.data))
+                                    }
+                                })
 
-                            const videoBlob = await (async () => {
-                                if (videoChunks.length > 0) {
-                                    const videoSuffix = await window.getExtension(videoMimeType!, "mp4")
+                                const videoObj = await (async () => {
+                                    if (videoChunks.length > 0) {
+                                        const videoSuffix = await window.getExtension(videoMimeType!, "mp4")
 
-                                    console.log("VIDEO SUFFIX: ", videoSuffix)
+                                        console.log("VIDEO SUFFIX: ", videoSuffix)
 
-                                    return new Blob(videoChunks, { type: `video/${videoSuffix}` })
-                                }
-                                return null
-                            })()
+                                        const blob = new Blob(videoChunks, { type: `video/${videoSuffix}` })
+
+                                        // const uid = getUid()
+
+                                        // window._blobs[uid] = blob
+
+                                        const url = URL.createObjectURL(blob)
+
+                                        return { blob, url }
+                                    }
+                                    return null
+                                })()
 
 
-                            const audioBlob = await (async () => {
-                                if (audioChunks.length > 0) {
-                                    const audioSuffix = await window.getExtension(audioMimeType!, "mp3")
+                                const audioObj = await (async () => {
+                                    if (audioChunks.length > 0) {
+                                        const audioSuffix = await window.getExtension(audioMimeType!, "mp3")
 
-                                    console.log("AUDIO SUFFIX: ", audioSuffix)
+                                        console.log("AUDIO SUFFIX: ", audioSuffix)
 
-                                    return new Blob(audioChunks, { type: `audio/${audioSuffix}` })
-                                }
-                                return null
-                            })()
-                            return data ? {
-                                type: "mediasource" as "mediasource",
-                                data: {
-                                    audio: audioBlob ?
-                                        {
-                                            bytes: new Uint8Array(await audioBlob.arrayBuffer()),
-                                            fileSuffix: audioBlob.type.split("/").at(-1)
-                                        } : null,
-                                    video: videoBlob ?
-                                        {
-                                            bytes: new Uint8Array(await videoBlob.arrayBuffer()),
-                                            fileSuffix: videoBlob.type.split("/").at(-1)
-                                        } : null
-                                }
-                            } : undefined
+                                        const blob = new Blob(audioChunks, { type: `audio/${audioSuffix}` })
+
+                                        // const uid = getUid()
+
+                                        // window._blobs[uid] = blob
+
+                                        const url = URL.createObjectURL(blob)
+
+                                        return { blob, url }
+                                    }
+                                    return null
+                                })()
+                                const result = data ? {
+                                    type: "mediasource" as "mediasource",
+                                    data: {
+                                        audio: audioObj ? {
+                                            // bytes: new Uint8Array(await audioBlob.arrayBuffer()),
+                                            // url: URL.createObjectURL(audioBlob),
+                                            url: audioObj.url,
+                                            fileSuffix: audioObj.blob.type.split("/").at(-1)
+                                        }
+                                            : null,
+                                        video: videoObj ? {
+                                            // bytes: new Uint8Array(await videoBlob.arrayBuffer()),
+                                            // url: URL.createObjectURL(videoBlob),
+                                            url: videoObj.url,
+                                            fileSuffix: videoObj.blob.type.split("/").at(-1)
+                                        }
+                                            : null
+                                    }
+                                } : undefined
+
+                                console.log("FINAL MS RESULT: ", result)
+                                return result
+                            }
                         }
-                        return undefined
+                    } catch (err) {
+                        console.log("ERROR IN CHECK READY STATE: ", (err as Error).message)
                     }
+                    return undefined
                 }
 
-                const result = checkReadyState(ms)
-
+                const result = await checkReadyState(ms)
+                console.log("MS RESULT: ", result)
                 if (result) {
                     return result
                 }
@@ -191,7 +248,8 @@ export class MediaSourceDashboard {
                 const promise = new Promise<ReturnType<typeof checkReadyState> | undefined>((resolve) => {
                     const handleResolve = () => {
                         console.log("ONE OF MEDIA SOURCE is completed...")
-                        setTimeout(() => {
+                        setTimeout(async () => {
+                            const result = await checkReadyState(ms)
                             resolve(checkReadyState(ms))
                         }, 500)
                     }
@@ -199,7 +257,7 @@ export class MediaSourceDashboard {
                     ms.addEventListener("sourceended", handleResolve, { once: true })
                 })
 
-                return promise
+                return await promise
             }))
         }
 
@@ -216,7 +274,83 @@ export class MediaSourceDashboard {
             }
         }
 
+        console.log("FORMATTED RESULT: ", formattedResult)
+
         window.passData(formattedResult)
+    }
+
+    private mediaSourceProgress(link: string, options: {
+        onProgress?: (data: HighlightObj) => void
+    } = {}) {
+        const { onProgress } = options
+        let ele = document.querySelector(`video[src="${link}"]`)
+        if (!ele) {
+            ele = document.querySelector(`audio[src="${link}"]`)
+        }
+        if (!ele) {
+            ele = document.querySelector(`img[src="${link}"]`)
+        }
+        console.log("MEDIA SOURCE ELEMENT: ", ele)
+        if (ele && ele instanceof HTMLMediaElement) {
+            ele.addEventListener("progress", () => {
+                if (ele.buffered.length > 0) {
+                    const loaded = ele.buffered.end(ele.buffered.length - 1);
+                    const total = ele.duration;
+                    const percentCompleted = (loaded / total) * 100;
+                    onProgress?.call({}, {
+                        loaded,
+                        total,
+                        percentCompleted
+                    })
+                }
+            })
+        } else {
+            console.log("NO ELEMENT found: ", link)
+        }
+    }
+
+    private async downloadWithProgress(
+        link: string,
+        options: {
+            onProgress?: (data: HighlightObj) => void
+        } = {}
+    ) {
+        const { onProgress } = options
+        const response = await fetch(link);
+
+        // 1. Get the total size from headers
+        const contentLength = response.headers.get('content-length');
+        const total = contentLength !== null ? parseInt(contentLength, 10) : null;
+        let loaded = 0;
+
+        // 2. Initialize the reader
+        const reader = response.body?.getReader();
+        const chunks = []; // Store chunks to reconstruct the file later
+
+        if (!reader) return null
+
+        // 3. Read the data stream
+        while (true) {
+            const { done, value } = await reader.read();
+
+            if (done) break;
+
+            chunks.push(value);
+            loaded += value.length;
+
+            // 4. Calculate and log progress
+            const percentCompleted = typeof total === "number" ? (loaded / total) * 100 : null;
+            onProgress?.call({}, { total, loaded, percentCompleted })
+        }
+
+        // 5. Combine chunks into a single Blob
+        const blob = new Blob(chunks);
+        // const bytes = await blob.bytes()
+
+        return {
+            blob,
+            response
+        }
     }
 
 }

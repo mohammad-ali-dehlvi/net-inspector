@@ -6,6 +6,7 @@ import { BrowserStatus, ResponseProgress } from "src/server/utils/CustomPlaywrig
 import cssStyles from "src/client/pages/home/style.module.css";
 import { BrowserSocketStatusType } from "src/server/routers/browser/types";
 import Header from "src/client/components/Header";
+import { FFMPEGProgress } from "src/server/utils/functions";
 
 // ─── Status config ────────────────────────────────────────────────────────────
 const STATUS_CONFIG = {
@@ -23,6 +24,7 @@ function getStatusConfig(status: BrowserStatus | "loading") {
 export default function Home() {
     const [browserStatus, setBrowserStatus] = useState<BrowserStatus | "loading">("loading");
     const [responseProgress, setResponseProgress] = useState<ResponseProgress>({ total: 0, completed: 0, pending: 0 })
+    const [ffmpegProgress, setFfmpegProgress] = useState<FFMPEGProgress | null>(null)
     const [urlValue, setUrlValue] = useState("")
     const { hitApi: startHitApi } = useApiHook({ callback: browserService.start });
     const { data: stoppedData, hitApi: stopHitApi, reset: resetStopHitApi } = useApiHook({ callback: browserService.stop });
@@ -48,6 +50,8 @@ export default function Home() {
                 setBrowserStatus(data.data)
             } else if (data.type === "pending_promise") {
                 setResponseProgress(data.data)
+            } else if (data.type === "ffmpeg_progress") {
+                setFfmpegProgress(data.data)
             }
         }
         browserService.subscribe(handler)
@@ -205,6 +209,12 @@ export default function Home() {
                             </div>
                         </div>
                     </div>
+
+                    {!!ffmpegProgress && (
+                        <pre style={{ fontSize: "8px" }} >
+                            {JSON.stringify(ffmpegProgress, null, 4)}
+                        </pre>
+                    )}
                 </div>
             </div>
         </>

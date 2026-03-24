@@ -2,11 +2,11 @@ import playwright from "playwright";
 import type { Browser, BrowserContext, Page } from "playwright";
 import * as path from "node:path";
 import * as fs from "node:fs";
-import { NetworkItemType } from "src/shared/types";
+import { DownloadFileResponseType, NetworkItemType } from "src/shared/types";
 import { BrowserApiRequest } from "src/server/routers/browser/types";
 import { spawn } from "child_process"
 import { GetExtensionFunc, PassDataFunc } from "src/server/utils/CustomPlaywright/types";
-import { RandomFileName, getExtension, muxStreams } from "src/server/utils/functions";
+import { CustomNodeEvent, FFMPEGOptionsType, FFMPEGProgress, RandomFileName, getExtension, muxStreams } from "src/server/utils/functions";
 
 export type BrowserStatus = "started" | "stopped"
 
@@ -14,7 +14,7 @@ type BrowserStatusChangeCallback = (obj: { status: BrowserStatus }) => void
 
 export type ResultType = {
     pageUrl: string;
-    downloadFiles?: { url: string }[];
+    downloadFiles?: DownloadFileResponseType[];
     result: {
         file: string | null;
         result: {
@@ -41,7 +41,8 @@ export class CustomPlaywrightPage {
     private totalResponsePromises = 0
     private completedResponsePromises = 0
 
-    private progressListeners: ((progress: ResponseProgress) => void)[] = []
+    private progressCustomEvent = new CustomNodeEvent<ResponseProgress>()
+    private ffmpegProgressCustomEvent = new CustomNodeEvent<FFMPEGProgress>()
 
     private onBrowserStatusChangeCallbacks: (BrowserStatusChangeCallback)[] = []
 
@@ -124,7 +125,7 @@ export class CustomPlaywrightPage {
     public onResponseProgress(
         listener: (progress: ResponseProgress) => void
     ) {
-        this.progressListeners.push(listener)
+        this.progressCustomEvent.subscribe(listener)
     }
 
     private emitOnBrowserStatusChangeCallbacks(status: BrowserStatus) {
@@ -139,10 +140,18 @@ export class CustomPlaywrightPage {
             completed: this.completedResponsePromises,
             pending: this.totalResponsePromises - this.completedResponsePromises,
         }
+        this.progressCustomEvent.dispatch(progress)
+    }
 
-        for (const listener of this.progressListeners) {
-            listener(progress)
+    public onFFMPEGProgressChange(callback: FFMPEGOptionsType['onProgress']) {
+        console.log("FFMPEG CALLBACK: ", callback)
+        if (callback) {
+            this.ffmpegProgressCustomEvent.subscribe(callback)
         }
+    }
+
+    private emitFFMPEGProgressChange(progress: FFMPEGProgress) {
+        this.ffmpegProgressCustomEvent.dispatch(progress)
     }
 
     private async handleResponse(page: typeof this.pages[0], response: playwright.Response, videoPath: string) {
@@ -314,9 +323,9 @@ export class CustomPlaywrightPage {
             path: path.resolve(path.join(this.playwright_main_folder, "utils", "initScript", "dist-utils", "utils.bundle.js"))
         })
 
-        const copyToAllDownloads = (fromPath: string) => {
+        const copyToAllDownloads = (fromPath: string, toFolder?: string[]) => {
             const fileName = path.basename(fromPath)
-            const toPathDir = CustomPlaywrightPage.all_downloads_folder
+            const toPathDir = !!toFolder ? path.join(CustomPlaywrightPage.all_downloads_folder, ...toFolder) : CustomPlaywrightPage.all_downloads_folder
             if (!fs.existsSync(toPathDir)) {
                 fs.mkdirSync(toPathDir, { recursive: true })
             }
@@ -325,17 +334,43 @@ export class CustomPlaywrightPage {
             fs.copyFileSync(fromPath, toPath)
         }
 
-        const saveToDownloadsFolder = (bytes: Uint8Array, obj: { fileName?: string; fileSuffix?: string } = {}) => {
-            const { fileName, fileSuffix } = obj
-            const fixFileName = fileName ? fileName : RandomFileName.createName(fileSuffix)
+        type Type1 = { bytes: Uint8Array, fileName?: string; fileSuffix?: string }
+        type Type2 = { bytes: { data: Uint8Array, fileName: string }[] }
+        const saveToDownloadsFolder = (...data: (
+            Type1 |
+            Type2
+        )[]) => {
+            for (let i = 0; i < data.length; i++) {
+                const obj = data[i]
+                if (!Array.isArray(obj.bytes)) {
+                    const { fileName, fileSuffix, bytes } = obj as Type1
+                    const fixFileName = fileName ? fileName : RandomFileName.createName(fileSuffix)
 
-            const filePath = path.join(videoPath, CustomPlaywrightPage.download_files_folder_path, fixFileName)
-            const dirPath = path.dirname(filePath)
-            if (!fs.existsSync(dirPath)) {
-                fs.mkdirSync(dirPath, { recursive: true })
+                    const filePath = path.join(videoPath, CustomPlaywrightPage.download_files_folder_path, fixFileName)
+                    const dirPath = path.dirname(filePath)
+                    if (!fs.existsSync(dirPath)) {
+                        fs.mkdirSync(dirPath, { recursive: true })
+                    }
+                    fs.writeFileSync(filePath, bytes)
+                    copyToAllDownloads(filePath)
+                } else if (Array.isArray(obj.bytes)) {
+                    const folderName = RandomFileName.createName()
+
+                    const dirPath = path.join(videoPath, CustomPlaywrightPage.download_files_folder_path, folderName)
+                    if (!fs.existsSync(dirPath)) {
+                        fs.mkdirSync(dirPath, { recursive: true })
+                    }
+                    for (let i = 0; i < obj.bytes.length; i++) {
+                        const data = obj.bytes[i]
+                        const { data: bytes, fileName } = data
+
+                        const filePath = path.join(dirPath, fileName)
+
+                        fs.writeFileSync(filePath, bytes)
+                        copyToAllDownloads(filePath, [folderName])
+                    }
+                }
             }
-            fs.writeFileSync(filePath, bytes)
-            copyToAllDownloads(filePath)
         }
 
         this.context.exposeFunction("getExtension", ((mimeType, backupExtension) => {
@@ -343,36 +378,6 @@ export class CustomPlaywrightPage {
             console.log("NODE EXTENSION: ", result)
             return result
         }) as GetExtensionFunc)
-
-        this.context.exposeFunction("passData", (async (data) => {
-            for (let i = 0; i < data.length; i++) {
-                const obj = data[i]
-                try {
-
-                    if (obj.type === "normal") {
-                        const { bytes, fileSuffix } = obj
-
-                        saveToDownloadsFolder(bytes, { fileSuffix })
-                    } else {
-                        const { data: { video, audio } } = obj
-
-                        if (video && audio) {
-                            const { fileSuffix: videoSuffix, bytes: videoBytes } = video
-                            const { bytes: audioBytes } = audio
-                            const outputPath = path.join(videoPath, CustomPlaywrightPage.download_files_folder_path, RandomFileName.createName(videoSuffix))
-                            await muxStreams(Buffer.from(videoBytes), Buffer.from(audioBytes), outputPath)
-                            copyToAllDownloads(outputPath)
-                        } else if (video || audio) {
-                            const data = (video || audio)!
-                            saveToDownloadsFolder(Buffer.from(data.bytes), { fileSuffix: data.fileSuffix })
-                        }
-                    }
-                } catch (err) {
-                    console.log("ERROR in: ", obj.type)
-                    console.log(err)
-                }
-            }
-        }) as PassDataFunc)
 
         this.context.addListener("console", (consoleMessage) => {
             console.log("CONSOLE LOG MESSAGE: ", consoleMessage.text())
@@ -393,6 +398,10 @@ export class CustomPlaywrightPage {
             await this.getOrCreateResultObj(page)
 
             page.addListener("response", async (response) => {
+                const url = response.url()
+                if (url.includes(".m4s") || url.includes(".ts")) {
+                    console.log("URL m4s or ts: ", url)
+                }
                 const promise = this.handleResponse(page, response, videoPath)
 
                 this.totalResponsePromises++
@@ -417,6 +426,66 @@ export class CustomPlaywrightPage {
                 const timeObj = this.getOrCreateTimeObj(page)
                 timeObj.stop = Date.now()
             })
+
+            page.exposeFunction("passData", (async (data) => {
+                console.log("PASS DATA FUNC: ", data)
+                const getBytes = async (url: string) => {
+                    return await page.evaluate(async (url) => {
+                        // const blob = window._blobs[uid]!
+                        // return await blob.bytes()
+                        const res = await fetch(url)
+                        return await res.bytes()
+                    }, url)
+                }
+                for (let i = 0; i < data.length; i++) {
+                    const obj = data[i]
+                    try {
+
+                        if (obj.type === "normal") {
+                            const { url, fileSuffix } = obj
+
+                            const bytes = await getBytes(url)
+
+                            saveToDownloadsFolder({ bytes, fileSuffix })
+                        } else {
+                            const { data: { video, audio } } = obj
+
+                            if (video && audio) {
+                                const { fileSuffix: videoSuffix, url: videoUrl } = video
+                                const { fileSuffix: audioSuffix, url: audioUrl } = audio
+                                const [videoBytes, audioBytes] = await Promise.all([getBytes(videoUrl), getBytes(audioUrl)])
+                                // saveToDownloadsFolder(
+                                //     {
+                                //         bytes: [
+                                //             { data: videoBytes, fileName: `video.${videoSuffix}` },
+                                //             { data: audioBytes, fileName: `audio.${audioSuffix}` }
+                                //         ]
+                                //     }
+                                // )
+                                const outputPath = path.join(videoPath, CustomPlaywrightPage.download_files_folder_path, RandomFileName.createName(videoSuffix))
+                                await muxStreams(
+                                    Buffer.from(videoBytes),
+                                    Buffer.from(audioBytes),
+                                    outputPath,
+                                    {
+                                        onProgress: (data) => {
+                                            this.emitFFMPEGProgressChange(data)
+                                        }
+                                    }
+                                )
+                                copyToAllDownloads(outputPath)
+                                console.log("COMPLETED!...")
+                            } else if (!!video || !!audio) {
+                                const data = (video || audio)!
+                                saveToDownloadsFolder({ bytes: Buffer.from(await getBytes(data.url)), fileSuffix: data.fileSuffix })
+                            }
+                        }
+                    } catch (err) {
+                        console.log("ERROR in: ", obj.type)
+                        console.log(err)
+                    }
+                }
+            }) as PassDataFunc)
         })
         await this.context?.newPage()
 
@@ -517,6 +586,9 @@ export class CustomPlaywrightPage {
         this.pages = []
         this.time = []
         this.result = null
+        this.totalResponsePromises = 0
+        this.completedResponsePromises = 0
+        this.progressCustomEvent = new CustomNodeEvent()
         this.emitOnBrowserStatusChangeCallbacks("stopped")
     }
 

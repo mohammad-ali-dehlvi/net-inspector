@@ -9,6 +9,7 @@ import { videoService } from "src/client/services"
 
 export default function AllDownloads() {
     const { data, loading, error, hitApi } = useApiHook({ callback: videoService.getAllDownloads })
+    const { data: deleteData, loading: deleteLoading, error: deleteError, hitApi: deleteHitApi } = useApiHook({ callback: videoService.deleteAllDownloadFile })
     const [paginationState, setPaginationState] = useState({ startIndex: 0, offset: 0 })
 
     const urls = useMemo(() => {
@@ -24,14 +25,17 @@ export default function AllDownloads() {
     }, [urls, paginationState])
 
     useEffect(() => {
-        console.log(data)
-    }, [data])
+        console.log(deleteData)
+        if (deleteData?.success) {
+            hitApi()
+        }
+    }, [deleteData])
 
     useEffect(() => {
         hitApi()
     }, [])
 
-    if (loading) {
+    if (loading && !data) {
         return <div>
             <p>Loading...</p>
         </div>
@@ -46,6 +50,12 @@ export default function AllDownloads() {
             />
             <DownloadedFilesViewer
                 data={paginatedUrls}
+                onDelete={(data) => {
+                    const fileName = data.url.split("/").at(-1)
+                    if (fileName) {
+                        deleteHitApi(fileName)
+                    }
+                }}
             />
             <div style={{ display: "inline-block", position: "sticky", bottom: "10px", left: "50%", transform: "translateX(-50%)" }} >
                 <Pagination

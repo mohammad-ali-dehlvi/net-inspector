@@ -25,11 +25,23 @@ async function getExtensionFromBuffer(buffer: Buffer) {
     return result.ext
 }
 
+export type FFMPEGProgress = {
+    frames: number;
+    currentFps: number;
+    currentKbps: number;
+    targetSize: number;
+    timemark: string;
+    percent?: number | undefined;
+}
+
+export type FFMPEGOptionsType = {
+    onProgress?: (progress: FFMPEGProgress) => void
+}
 
 ffmpeg.setFfmpegPath(ffmpegPath!)
-export async function muxStreams(video: Buffer, audio: Buffer, outputPath: string): Promise<any>
-export async function muxStreams(videoPath: string, audioPath: string, outputPath: string): Promise<any>
-export async function muxStreams(video: Buffer | string, audio: Buffer | string, outputPath: string) {
+export async function muxStreams(video: Buffer, audio: Buffer, outputPath: string, options?: FFMPEGOptionsType): Promise<any>
+export async function muxStreams(videoPath: string, audioPath: string, outputPath: string, options?: FFMPEGOptionsType): Promise<any>
+export async function muxStreams(video: Buffer | string, audio: Buffer | string, outputPath: string, options: FFMPEGOptionsType = {}) {
     if (video instanceof Buffer && audio instanceof Buffer) {
         const dir = path.dirname(outputPath)
         const tempDir = path.join(dir, "temp")
@@ -48,12 +60,12 @@ export async function muxStreams(video: Buffer | string, audio: Buffer | string,
         fs.writeFileSync(videoPath, video)
         fs.writeFileSync(audioPath, audio)
 
-        const result = await muxStreams(videoPath, audioPath, outputPath)
+        const result = await muxStreams(videoPath, audioPath, outputPath, options)
 
         // fs.unlinkSync(videoPath)
         // fs.unlinkSync(audioPath)
 
-        fs.rmSync(tempDir, { recursive: true, force: true })
+        // fs.rmSync(tempDir, { recursive: true, force: true })
 
         return result
     } else if (video instanceof Buffer || audio instanceof Buffer) {
@@ -62,30 +74,27 @@ export async function muxStreams(video: Buffer | string, audio: Buffer | string,
     const videoPath = video as string
     const audioPath = audio as string
     return new Promise((resolve, reject) => {
+        console.log("MUXING STARTED...")
+        const { onProgress } = options
+
         ffmpeg()
-            .input(videoPath)   // video is source of truth
+            .input(videoPath)
             .input(audioPath)
-            .complexFilter([
-                {
-                    filter: "apad",
-                    inputs: "1:a",
-                    outputs: "a"
-                }
-            ])
             .outputOptions([
-                "-map 0:v",
-                "-map [a]",
                 "-c:v copy",
-                "-c:a aac",
-                "-shortest",
-                "-fflags +genpts",
-                "-avoid_negative_ts make_zero"
+                "-c:a copy"
+
+                // "-c:v copy",
+                // "-c:a aac",
+                // "-b:a 192k"
             ])
+            .save(outputPath)
             .on("start", (cmd) => {
-                console.log("FFmpeg command:", cmd);
+                console.log("FFmpeg start command:", cmd);
             })
             .on("progress", (progress) => {
-                console.log("Processing:", progress.percent ? progress.percent.toFixed(2) + "%" : "");
+                onProgress?.(progress)
+                // console.log("Processing:", progress.percent ? progress.percent.toFixed(2) + "%" : "");
             })
             .on("end", () => {
                 console.log("Muxing finished");
@@ -95,22 +104,6 @@ export async function muxStreams(video: Buffer | string, audio: Buffer | string,
                 console.error("FFmpeg error:", err);
                 reject(err);
             })
-            .save(outputPath);
-
-        // ffmpeg()
-        //     .input(videoPath)
-        //     .input(audioPath)
-        //     .outputOptions([
-        //         "-c:v copy",
-        //         "-c:a copy"
-
-        //         // "-c:v copy",
-        //         // "-c:a aac",
-        //         // "-b:a 192k"
-        //     ])
-        //     .save(outputPath)
-        //     .on("end", resolve)
-        //     .on("error", reject)
     })
 }
 
@@ -133,5 +126,32 @@ export class RandomFileName {
             console.log("ERROR GET DATE FROM NAME: ", err)
         }
         return null
+    }
+}
+
+
+export class CustomNodeEvent<T> {
+    listeners: ((data: T) => void)[]
+    constructor() {
+        this.listeners = []
+    }
+
+    subscribe(callback: typeof this.listeners[0]) {
+        if (!this.listeners.includes(callback)) {
+            this.listeners.push(callback)
+        }
+
+        return () => {
+            const index = this.listeners.indexOf(callback)
+            if (index >= 0) {
+                this.listeners.splice(index, 1)
+            }
+        }
+    }
+
+    dispatch(data: T) {
+        this.listeners.forEach((listener) => {
+            listener(data)
+        })
     }
 }
